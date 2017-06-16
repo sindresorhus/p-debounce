@@ -63,6 +63,7 @@ Call the `fn` on the [leading edge of the timeout](https://css-tricks.com/deboun
 - [p-throttle](https://github.com/sindresorhus/p-throttle) - Throttle promise-returning & async functions
 - [p-limit](https://github.com/sindresorhus/p-limit) - Run multiple promise-returning & async functions with limited concurrency
 - [p-memoize](https://github.com/sindresorhus/p-memoize) - Memoize promise-returning & async functions
+- [debounce-fn](https://github.com/sindresorhus/debounce-fn) - Debounce a function
 - [More…](https://github.com/sindresorhus/promise-fun)
 
 
