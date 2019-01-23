@@ -1,5 +1,5 @@
 'use strict';
-module.exports = (fn, wait, opts) => {
+module.exports = function(fn, wait, opts) {
 	if (!Number.isFinite(wait)) {
 		throw new TypeError('Expected `wait` to be a finite number');
 	}
