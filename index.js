@@ -1,5 +1,6 @@
 'use strict';
-module.exports = (fn, wait, opts) => {
+
+const pDebounce = (fn, wait, opts) => {
 	if (!Number.isFinite(wait)) {
 		throw new TypeError('Expected `wait` to be a finite number');
 	}
@@ -10,9 +11,8 @@ module.exports = (fn, wait, opts) => {
 	let timer;
 	let resolveList = [];
 
-	return function () {
+	return function (...args) {
 		const ctx = this;
-		const args = arguments;
 
 		return new Promise(resolve => {
 			const runImmediately = opts.leading && !timer;
@@ -40,3 +40,6 @@ module.exports = (fn, wait, opts) => {
 		});
 	};
 };
+
+module.exports = pDebounce;
+module.exports.default = pDebounce;
