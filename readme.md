@@ -38,7 +38,7 @@ Returns a function that delays calling `fn` until after `wait` milliseconds have
 
 Type: `Function`
 
-Promise-returning/async function.
+Promise-returning/async function to debounce.
 
 #### wait
 
