@@ -6,7 +6,7 @@
 ## Install
 
 ```
-$ npm install --save p-debounce
+$ npm install p-debounce
 ```
 
 
@@ -15,7 +15,7 @@ $ npm install --save p-debounce
 ```js
 const pDebounce = require('p-debounce');
 
-const expensiveCall = input => Promise.resolve(input);
+const expensiveCall = async input => input;
 
 const debouncedFn = pDebounce(expensiveCall, 200);
 

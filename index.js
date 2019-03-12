@@ -1,39 +1,35 @@
 'use strict';
 
-const pDebounce = (fn, wait, opts) => {
+const pDebounce = (fn, wait, options = {}) => {
 	if (!Number.isFinite(wait)) {
 		throw new TypeError('Expected `wait` to be a finite number');
 	}
 
-	opts = opts || {};
-
-	let leadingVal;
+	let leadingValue;
 	let timer;
 	let resolveList = [];
 
-	return function (...args) {
-		const ctx = this;
-
+	return function (...arguments_) {
 		return new Promise(resolve => {
-			const runImmediately = opts.leading && !timer;
+			const runImmediately = options.leading && !timer;
 
 			clearTimeout(timer);
 
 			timer = setTimeout(() => {
 				timer = null;
 
-				const res = opts.leading ? leadingVal : fn.apply(ctx, args);
+				const result = options.leading ? leadingValue : fn.apply(this, arguments_);
 
 				for (resolve of resolveList) {
-					resolve(res);
+					resolve(result);
 				}
 
 				resolveList = [];
 			}, wait);
 
 			if (runImmediately) {
-				leadingVal = fn.apply(ctx, args);
-				resolve(leadingVal);
+				leadingValue = fn.apply(this, arguments_);
+				resolve(leadingValue);
 			} else {
 				resolveList.push(resolve);
 			}

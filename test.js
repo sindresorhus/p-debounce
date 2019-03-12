@@ -7,7 +7,7 @@ import pDebounce from '.';
 const fixture = Symbol('fixture');
 
 test('single call', async t => {
-	const debounced = pDebounce(async val => val, 100);
+	const debounced = pDebounce(async value => value, 100);
 	t.is(await debounced(fixture), fixture);
 });
 
@@ -15,10 +15,10 @@ test('multiple calls', async t => {
 	let count = 0;
 	const end = timeSpan();
 
-	const debounced = pDebounce(async val => {
+	const debounced = pDebounce(async value => {
 		count++;
 		await delay(50);
-		return val;
+		return value;
 	}, 100);
 
 	const results = await Promise.all([1, 2, 3, 4, 5].map(debounced));
@@ -34,10 +34,10 @@ test('multiple calls', async t => {
 test('leading option', async t => {
 	let count = 0;
 
-	const debounced = pDebounce(async val => {
+	const debounced = pDebounce(async value => {
 		count++;
 		await delay(50);
-		return val;
+		return value;
 	}, 100, {leading: true});
 
 	const results = await Promise.all([1, 2, 3, 4].map(debounced));
