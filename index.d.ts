@@ -15,7 +15,7 @@ declare const pDebounce: {
 
 	@param fn - Promise-returning/async function to debounce.
 	@param wait - Milliseconds to wait before calling `fn`.
-	@returns Returns a function that delays calling `fn` until after `wait` milliseconds have elapsed since the last time it was called.
+	@returns A function that delays calling `fn` until after `wait` milliseconds have elapsed since the last time it was called.
 
 	@example
 	```
