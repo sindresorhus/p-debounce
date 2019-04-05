@@ -38,4 +38,5 @@ const pDebounce = (fn, wait, options = {}) => {
 };
 
 module.exports = pDebounce;
+// TODO: Remove this for the next major release
 module.exports.default = pDebounce;
