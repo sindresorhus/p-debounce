@@ -1,4 +1,4 @@
-# p-debounce [![Build Status](https://travis-ci.org/sindresorhus/p-debounce.svg?branch=master)](https://travis-ci.org/sindresorhus/p-debounce)
+# p-debounce
 
 > [Debounce](https://css-tricks.com/debouncing-throttling-explained-examples/) promise-returning & async functions
 
