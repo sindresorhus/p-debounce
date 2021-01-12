@@ -28,7 +28,7 @@ const pDebounce = (fn, wait, options = {}) => {
 			}, wait);
 
 			if (runImmediately) {
-				leadingValue = fn.apply(this, arguments_);
+				leadingValue = fn(...arguments_);
 				resolve(leadingValue);
 			} else {
 				resolveList.push(resolve);
