@@ -18,7 +18,7 @@ const pDebounce = (fn, wait, options = {}) => {
 			timer = setTimeout(() => {
 				timer = null;
 
-				const result = options.leading ? leadingValue : fn(arguments_);
+				const result = options.leading ? leadingValue : fn(...arguments_);
 
 				for (resolve of resolveList) {
 					resolve(result);
