@@ -2,7 +2,6 @@
 	"name": "p-debounce",
 	"version": "2.1.0",
 	"description": "Debounce promise-returning & async functions",
-	"type": "module",
 	"license": "MIT",
 	"repository": "sindresorhus/p-debounce",
 	"author": {
@@ -10,6 +9,7 @@
 		"email": "sindresorhus@gmail.com",
 		"url": "sindresorhus.com"
 	},
+	"type": "module",
 	"engines": {
 		"node": ">=12"
 	},
