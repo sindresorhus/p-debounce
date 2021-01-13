@@ -1,5 +1,5 @@
 import {expectType} from 'tsd';
-import pDebounce = require('.');
+import pDebounce from '.';
 
 const expensiveCall = async (input: number) => input;
 

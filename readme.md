@@ -2,31 +2,28 @@
 
 > [Debounce](https://css-tricks.com/debouncing-throttling-explained-examples/) promise-returning & async functions
 
-
 ## Install
 
 ```
 $ npm install p-debounce
 ```
 
-
 ## Usage
 
 ```js
-const pDebounce = require('p-debounce');
+import pDebounce from 'p-debounce';
 
 const expensiveCall = async input => input;
 
 const debouncedFn = pDebounce(expensiveCall, 200);
 
-for (const i of [1, 2, 3]) {
-	debouncedFn(i).then(console.log);
+for (const number of [1, 2, 3]) {
+	console.log(await debouncedFn(number));
 }
 //=> 3
 //=> 3
 //=> 3
 ```
-
 
 ## API
 
@@ -68,7 +65,8 @@ Type: `Function`
 Promise-returning/async function to debounce.
 
 ```js
-const {setTimeout: delay} = require('timers/promises');
+import pDebounce from 'p-debounce';
+import {setTimeout as delay} = from 'timers/promises';
 
 const expensiveCall = async value => {
 	await delay(200);
@@ -77,14 +75,13 @@ const expensiveCall = async value => {
 
 const debouncedFn = pDebounce.promise(expensiveCall);
 
-for (const i of [1, 2, 3]) {
-	debouncedFn(i).then(console.log);
+for (const number of [1, 2, 3]) {
+	console.log(await debouncedFn(number));
 }
 //=> 3
 //=> 3
 //=> 3
 ```
-
 
 ## Related
 

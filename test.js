@@ -1,8 +1,8 @@
 import test from 'ava';
-import delay from 'delay';
+import delay from 'yoctodelay'; // TODO: Replace with `import {setTimeout as delay} = from 'timers/promises';` when targeting Node.js 16
 import inRange from 'in-range';
 import timeSpan from 'time-span';
-import pDebounce from '.';
+import pDebounce from './index.js'; // eslint-disable-line unicorn/import-index, import/extensions
 
 const fixture = Symbol('fixture');
 
@@ -25,7 +25,10 @@ test('multiple calls', async t => {
 
 	t.deepEqual(results, [5, 5, 5, 5, 5]);
 	t.is(count, 1);
-	t.true(inRange(end(), 130, 170));
+	t.true(inRange(end(), {
+		start: 130,
+		end: 170
+	}));
 
 	await delay(200);
 	t.is(await debounced(6), 6);

@@ -54,6 +54,4 @@ pDebounce.promise = function_ => {
 	};
 };
 
-module.exports = pDebounce;
-// TODO: Remove this for the next major release
-module.exports.default = pDebounce;
+export default pDebounce;

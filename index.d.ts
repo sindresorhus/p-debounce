@@ -19,7 +19,7 @@ declare const pDebounce: {
 
 	@example
 	```
-	import pDebounce = require('p-debounce');
+	import pDebounce from 'p-debounce';
 
 	const expensiveCall = async input => input;
 
@@ -40,13 +40,14 @@ declare const pDebounce: {
 	): (...arguments: ArgumentsType) => Promise<ReturnType>;
 
 	/**
-	Execute `function_` unless a previous call is still pending, in which case, return the pending promise.
+	Execute `function_` unless a previous call is still pending, in which case, return the pending promise. Useful, for example, to avoid processing extra button clicks if the previous one is not complete.
 
 	@param function_ - Promise-returning/async function to debounce.
 
 	@example
 	```
-	const {setTimeout: delay} = require('timers/promises');
+	import pDebounce from 'p-debounce';
+	import {setTimeout as delay} = from 'timers/promises';
 
 	const expensiveCall = async value => {
 		await delay(200);
@@ -55,8 +56,8 @@ declare const pDebounce: {
 
 	const debouncedFn = pDebounce.promise(expensiveCall);
 
-	for (const i of [1, 2, 3]) {
-		debouncedFn(i).then(console.log);
+	for (const number of [1, 2, 3]) {
+		console.log(await debouncedFn(number));
 	}
 	//=> 3
 	//=> 3
@@ -66,9 +67,6 @@ declare const pDebounce: {
 	promise<ArgumentsType extends unknown[], ReturnType>(
 		function_: (...arguments: ArgumentsType) => PromiseLike<ReturnType> | ReturnType
 	): (...arguments: ArgumentsType) => Promise<ReturnType>;
-
-	// TODO: Remove this for the next major release
-	default: typeof pDebounce;
 };
 
-export = pDebounce;
+export default pDebounce;
