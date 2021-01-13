@@ -27,7 +27,7 @@ for (const number of [1, 2, 3]) {
 
 ## API
 
-### pDebounce(fn, wait, [options])
+### pDebounce(fn, wait, options?)
 
 Returns a function that delays calling `fn` until after `wait` milliseconds have elapsed since the last time it was called.
 
