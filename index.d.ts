@@ -49,8 +49,8 @@ declare const pDebounce: {
 	const {setTimeout: delay} = require('timers/promises');
 
 	const expensiveCall = async value => {
-		await delay(200)
-		return value
+		await delay(200);
+		return value;
 	}
 
 	const debouncedFn = pDebounce.promise(expensiveCall);
