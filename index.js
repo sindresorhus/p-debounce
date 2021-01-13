@@ -37,6 +37,23 @@ const pDebounce = (fn, wait, options = {}) => {
 	};
 };
 
+pDebounce.promise = function_ => {
+	let currentPromise;
+
+	return async (...arguments_) => {
+		if (currentPromise) {
+			return currentPromise;
+		}
+
+		try {
+			currentPromise = function_(...arguments_);
+			return await currentPromise;
+		} finally {
+			currentPromise = undefined;
+		}
+	};
+};
+
 module.exports = pDebounce;
 // TODO: Remove this for the next major release
 module.exports.default = pDebounce;

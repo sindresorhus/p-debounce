@@ -31,6 +31,20 @@ test('multiple calls', async t => {
 	t.is(await debounced(6), 6);
 });
 
+test('.promise()', async t => {
+	let count = 0;
+
+	const debounced = pDebounce.promise(async () => {
+		await delay(50);
+		count++;
+		return count;
+	});
+
+	t.deepEqual(await Promise.all([1, 2, 3, 4, 5].map(debounced)), [1, 1, 1, 1, 1]);
+
+	t.is(await debounced(), 2);
+});
+
 test('leading option', async t => {
 	let count = 0;
 

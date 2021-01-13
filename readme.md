@@ -57,6 +57,34 @@ Default: `false`
 
 Call the `fn` on the [leading edge of the timeout](https://css-tricks.com/debouncing-throttling-explained-examples/#article-header-id-1). Meaning immediately, instead of waiting for `wait` milliseconds.
 
+### pDebounce.promise(function_)
+
+Execute `function_` unless a previous call is still pending, in which case, return the pending promise.
+
+#### function_
+
+Type: `Function`
+
+Promise-returning/async function to debounce.
+
+```js
+const {setTimeout: delay} = require('timers/promises');
+
+const expensiveCall = async value => {
+	await delay(200)
+	return value
+}
+
+const debouncedFn = pDebounce.promise(expensiveCall);
+
+for (const i of [1, 2, 3]) {
+	debouncedFn(i).then(console.log);
+}
+//=> 3
+//=> 3
+//=> 3
+```
+
 
 ## Related
 

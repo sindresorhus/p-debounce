@@ -39,13 +39,35 @@ declare const pDebounce: {
 		options?: pDebounce.Options
 	): (...arguments: ArgumentsType) => Promise<ReturnType>;
 
-	// TODO: Remove this for the next major release, refactor the whole definition to:
-	// declare function pDebounce<ArgumentsType extends unknown[], ReturnType>(
-	// 	fn: (...arguments: ArgumentsType) => PromiseLike<ReturnType> | ReturnType,
-	// 	wait: number,
-	// 	options?: pDebounce.Options
-	// ): (...arguments: ArgumentsType) => Promise<ReturnType>;
-	// export = pDebounce;
+	/**
+	Execute `function_` unless a previous call is still pending, in which case, return the pending promise.
+
+	@param function_ - Promise-returning/async function to debounce.
+
+	@example
+	```
+	const {setTimeout: delay} = require('timers/promises');
+
+	const expensiveCall = async value => {
+		await delay(200)
+		return value
+	}
+
+	const debouncedFn = pDebounce.promise(expensiveCall);
+
+	for (const i of [1, 2, 3]) {
+		debouncedFn(i).then(console.log);
+	}
+	//=> 3
+	//=> 3
+	//=> 3
+	```
+	*/
+	promise<ArgumentsType extends unknown[], ReturnType>(
+		function_: (...arguments: ArgumentsType) => PromiseLike<ReturnType> | ReturnType
+	): (...arguments: ArgumentsType) => Promise<ReturnType>;
+
+	// TODO: Remove this for the next major release
 	default: typeof pDebounce;
 };
 
