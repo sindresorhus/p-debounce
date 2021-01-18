@@ -45,11 +45,11 @@ Milliseconds to wait before calling `fn`.
 
 #### options
 
-Type: `Object`
+Type: `object`
 
 ##### leading
 
-Type: `boolean`<br>
+Type: `boolean`\
 Default: `false`
 
 Call the `fn` on the [leading edge of the timeout](https://css-tricks.com/debouncing-throttling-explained-examples/#article-header-id-1). Meaning immediately, instead of waiting for `wait` milliseconds.
@@ -65,8 +65,8 @@ Type: `Function`
 Promise-returning/async function to debounce.
 
 ```js
+import {setTimeout as delay} from 'timers/promises';
 import pDebounce from 'p-debounce';
-import {setTimeout as delay} = from 'timers/promises';
 
 const expensiveCall = async value => {
 	await delay(200);
@@ -90,8 +90,3 @@ for (const number of [1, 2, 3]) {
 - [p-memoize](https://github.com/sindresorhus/p-memoize) - Memoize promise-returning & async functions
 - [debounce-fn](https://github.com/sindresorhus/debounce-fn) - Debounce a function
 - [More…](https://github.com/sindresorhus/promise-fun)
-
-
-## License
-
-MIT © [Sindre Sorhus](https://sindresorhus.com)
