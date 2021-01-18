@@ -56,7 +56,7 @@ Call the `fn` on the [leading edge of the timeout](https://css-tricks.com/deboun
 
 ### pDebounce.promise(function_)
 
-Execute `function_` unless a previous call is still pending, in which case, return the pending promise.
+Execute `function_` unless a previous call is still pending, in which case, return the pending promise. Useful, for example, to avoid processing extra button clicks if the previous one is not complete.
 
 #### function_
 
