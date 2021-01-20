@@ -79,3 +79,40 @@ test('leading option - does not call input function after timeout', async t => {
 
 	t.is(count, 1);
 });
+
+// Factory to create a separate class for each test below
+// * Each test replaces methods in the class with a debounced variant,
+//   hence the need to start with fresh class for each test
+const createFixtureClass = () => class {
+	constructor() {
+		this._foo = fixture;
+	}
+
+	foo() {
+		// If `this` is not preserved by pDebounce() or pDebounce.promise(),
+		// then `this` will be undefined and accesing `this._foo` will throw.
+		return this._foo;
+	}
+
+	getThis() {
+		// If `this` is not preserved by pDebounce() or pDebounce.promise(),
+		// then `this` will be undefined
+		return this;
+	}
+};
+
+[
+	['pDebounce()', pDebounce],
+	['pDebounce().promise()', pDebounce.promise]
+].forEach(([name, debounceFn]) => {
+	test(`\`this\` is preserved in ${name} fn`, async t => {
+		const FixtureClass = createFixtureClass();
+		FixtureClass.prototype.foo = debounceFn(FixtureClass.prototype.foo, 10);
+		FixtureClass.prototype.getThis = debounceFn(FixtureClass.prototype.getThis, 10);
+
+		const thisFixture = new FixtureClass();
+
+		t.is(await thisFixture.getThis(), thisFixture);
+		await t.notThrowsAsync(() => thisFixture.foo());
+	});
+});
