@@ -89,14 +89,14 @@ const createFixtureClass = () => class {
 	}
 
 	foo() {
-		// If `this` is not preserved by pDebounce() or pDebounce.promise(),
-		// then `this` will be undefined and accesing `this._foo` will throw.
+		// If `this` is not preserved by `pDebounce()` or `pDebounce.promise()`,
+		// then `this` will be undefined and accessing `this._foo` will throw.
 		return this._foo;
 	}
 
 	getThis() {
-		// If `this` is not preserved by pDebounce() or pDebounce.promise(),
-		// then `this` will be undefined
+		// If `this` is not preserved by `pDebounce()` or `pDebounce.promise()`,
+		// then `this` will be undefined.
 		return this;
 	}
 };
