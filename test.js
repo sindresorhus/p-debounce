@@ -101,10 +101,12 @@ const createFixtureClass = () => class {
 	}
 };
 
-[
+const preserveThisCases = [
 	['pDebounce()', pDebounce],
 	['pDebounce().promise()', pDebounce.promise]
-].forEach(([name, debounceFn]) => {
+];
+
+for (const [name, debounceFn] of preserveThisCases) {
 	test(`\`this\` is preserved in ${name} fn`, async t => {
 		const FixtureClass = createFixtureClass();
 		FixtureClass.prototype.foo = debounceFn(FixtureClass.prototype.foo, 10);
@@ -116,4 +118,4 @@ const createFixtureClass = () => class {
 		await t.notThrowsAsync(thisFixture.foo());
 		t.is(await thisFixture.foo(), fixture);
 	});
-});
+}
