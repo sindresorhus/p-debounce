@@ -18,7 +18,7 @@ const pDebounce = (fn, wait, options = {}) => {
 			timer = setTimeout(() => {
 				timer = null;
 
-				const result = options.leading ? leadingValue : fn(...arguments_);
+				const result = options.leading ? leadingValue : fn.apply(this, arguments_);
 
 				for (resolve of resolveList) {
 					resolve(result);
@@ -28,7 +28,7 @@ const pDebounce = (fn, wait, options = {}) => {
 			}, wait);
 
 			if (runImmediately) {
-				leadingValue = fn(...arguments_);
+				leadingValue = fn.apply(this, arguments_);
 				resolve(leadingValue);
 			} else {
 				resolveList.push(resolve);
@@ -40,13 +40,13 @@ const pDebounce = (fn, wait, options = {}) => {
 pDebounce.promise = function_ => {
 	let currentPromise;
 
-	return async (...arguments_) => {
+	return async function (...arguments_) {
 		if (currentPromise) {
 			return currentPromise;
 		}
 
 		try {
-			currentPromise = function_(...arguments_);
+			currentPromise = function_.apply(this, arguments_);
 			return await currentPromise;
 		} finally {
 			currentPromise = undefined;
