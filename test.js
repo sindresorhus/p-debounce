@@ -82,7 +82,7 @@ test('leading option - does not call input function after timeout', async t => {
 
 // Factory to create a separate class for each test below
 // * Each test replaces methods in the class with a debounced variant,
-//   hence the need to start with fresh class for each test
+//   hence the need to start with fresh class for each test.
 const createFixtureClass = () => class {
 	constructor() {
 		this._foo = fixture;
