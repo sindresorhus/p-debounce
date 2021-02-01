@@ -1,5 +1,3 @@
-'use strict';
-
 const pDebounce = (fn, wait, options = {}) => {
 	if (!Number.isFinite(wait)) {
 		throw new TypeError('Expected `wait` to be a finite number');
