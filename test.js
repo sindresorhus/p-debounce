@@ -80,6 +80,28 @@ test('leading option - does not call input function after timeout', async t => {
 	t.is(count, 1);
 });
 
+test('fn takes longer than wait', async t => {
+	let count = 0;
+
+	const debounced = pDebounce(async value => {
+		count++;
+		await delay(200);
+		return value;
+	}, 100);
+
+	const setOne = [1, 2, 3];
+	const setTwo = [4, 5, 6];
+
+	const promiseSetOne = setOne.map(value => debounced(value));
+	await delay(101);
+	const promiseSetTwo = setTwo.map(value => debounced(value));
+
+	const results = await Promise.all([...promiseSetOne, ...promiseSetTwo]);
+
+	t.deepEqual(results, [3, 3, 3, 6, 6, 6]);
+	t.is(count, 2);
+});
+
 // Factory to create a separate class for each test below
 // * Each test replaces methods in the class with a debounced variant,
 //   hence the need to start with fresh class for each test.
