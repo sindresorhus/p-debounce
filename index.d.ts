@@ -59,8 +59,8 @@ declare const pDebounce: {
 	for (const number of [1, 2, 3]) {
 		console.log(await debouncedFn(number));
 	}
-	//=> 3
-	//=> 3
+	//=> 1
+	//=> 2
 	//=> 3
 	```
 	*/
