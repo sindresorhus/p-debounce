@@ -1,5 +1,3 @@
-'use strict';
-
 const pDebounce = (fn, wait, options = {}) => {
 	if (!Number.isFinite(wait)) {
 		throw new TypeError('Expected `wait` to be a finite number');
@@ -40,13 +38,13 @@ const pDebounce = (fn, wait, options = {}) => {
 pDebounce.promise = function_ => {
 	let currentPromise;
 
-	return async (...arguments_) => {
+	return async function (...arguments_) {
 		if (currentPromise) {
 			return currentPromise;
 		}
 
 		try {
-			currentPromise = function_(...arguments_);
+			currentPromise = function_.apply(this, arguments_);
 			return await currentPromise;
 		} finally {
 			currentPromise = undefined;

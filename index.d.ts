@@ -25,8 +25,8 @@ declare const pDebounce: {
 
 	const debouncedFn = pDebounce(expensiveCall, 200);
 
-	for (const i of [1, 2, 3]) {
-		debouncedFn(i).then(console.log);
+	for (const number of [1, 2, 3]) {
+		console.log(await debouncedFn(number));
 	}
 	//=> 3
 	//=> 3
@@ -46,8 +46,8 @@ declare const pDebounce: {
 
 	@example
 	```
+	import {setTimeout as delay} from 'timers/promises';
 	import pDebounce from 'p-debounce';
-	import {setTimeout as delay} = from 'timers/promises';
 
 	const expensiveCall = async value => {
 		await delay(200);
@@ -59,8 +59,8 @@ declare const pDebounce: {
 	for (const number of [1, 2, 3]) {
 		console.log(await debouncedFn(number));
 	}
-	//=> 3
-	//=> 3
+	//=> 1
+	//=> 2
 	//=> 3
 	```
 	*/

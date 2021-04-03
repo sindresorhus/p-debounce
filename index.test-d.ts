@@ -10,3 +10,6 @@ expectType<(input: number) => Promise<number>>(
 expectType<(input: number) => Promise<number>>(
 	pDebounce.promise(expensiveCall)
 );
+expectType<(input: number) => Promise<number>>(
+	pDebounce.promise(expensiveCall)
+);
