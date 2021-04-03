@@ -47,7 +47,7 @@ Milliseconds to wait before calling `fn`.
 
 Type: `Object`
 
-##### leading
+##### before
 
 Type: `boolean`<br>
 Default: `false`

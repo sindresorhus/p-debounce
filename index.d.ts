@@ -5,7 +5,7 @@ declare namespace pDebounce {
 
 		@default false
 		*/
-		readonly leading?: boolean;
+		readonly before?: boolean;
 	}
 }
 

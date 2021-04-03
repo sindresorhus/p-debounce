@@ -48,14 +48,14 @@ test('.promise()', async t => {
 	t.is(await debounced(), 2);
 });
 
-test('leading option', async t => {
+test('before option', async t => {
 	let count = 0;
 
 	const debounced = pDebounce(async value => {
 		count++;
 		await delay(50);
 		return value;
-	}, 100, {leading: true});
+	}, 100, {before: true});
 
 	const results = await Promise.all([1, 2, 3, 4].map(value => debounced(value)));
 
@@ -67,12 +67,12 @@ test('leading option', async t => {
 	t.is(await debounced(6), 5);
 });
 
-test('leading option - does not call input function after timeout', async t => {
+test('before option - does not call input function after timeout', async t => {
 	let count = 0;
 
 	const debounced = pDebounce(async () => {
 		count++;
-	}, 100, {leading: true});
+	}, 100, {before: true});
 
 	await delay(300);
 	await debounced();
