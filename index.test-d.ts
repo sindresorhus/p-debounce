@@ -7,7 +7,6 @@ expectType<(input: number) => Promise<number>>(pDebounce(expensiveCall, 200));
 expectType<(input: number) => Promise<number>>(
 	pDebounce(expensiveCall, 200, {before: true})
 );
-
 expectType<(input: number) => Promise<number>>(
 	pDebounce.promise(expensiveCall)
 );
