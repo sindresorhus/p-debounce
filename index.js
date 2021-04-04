@@ -3,7 +3,7 @@ const pDebounce = (fn, wait, options = {}) => {
 		throw new TypeError('Expected `wait` to be a finite number');
 	}
 
-	let result;
+	let leadingValue;
 	let timeout;
 	let resolveList = [];
 
@@ -16,7 +16,7 @@ const pDebounce = (fn, wait, options = {}) => {
 			timeout = setTimeout(() => {
 				timeout = null;
 
-				const result = options.before ? result : fn.apply(this, arguments_);
+				const result = options.before ? leadingValue : fn.apply(this, arguments_);
 
 				for (resolve of resolveList) {
 					resolve(result);
@@ -26,8 +26,8 @@ const pDebounce = (fn, wait, options = {}) => {
 			}, wait);
 
 			if (shouldCallNow) {
-				result = fn.apply(this, arguments_);
-				resolve(result);
+				leadingValue = fn.apply(this, arguments_);
+				resolve(leadingValue);
 			} else {
 				resolveList.push(resolve);
 			}
