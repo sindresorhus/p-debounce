@@ -1,6 +1,6 @@
 {
 	"name": "p-debounce",
-	"version": "3.0.2",
+	"version": "4.0.0",
 	"description": "Debounce promise-returning & async functions",
 	"license": "MIT",
 	"repository": "sindresorhus/p-debounce",
