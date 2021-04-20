@@ -4,19 +4,19 @@ const pDebounce = (fn, wait, options = {}) => {
 	}
 
 	let leadingValue;
-	let timer;
+	let timeout;
 	let resolveList = [];
 
 	return function (...arguments_) {
 		return new Promise(resolve => {
-			const runImmediately = options.leading && !timer;
+			const shouldCallNow = options.before && !timeout;
 
-			clearTimeout(timer);
+			clearTimeout(timeout);
 
-			timer = setTimeout(() => {
-				timer = null;
+			timeout = setTimeout(() => {
+				timeout = null;
 
-				const result = options.leading ? leadingValue : fn.apply(this, arguments_);
+				const result = options.before ? leadingValue : fn.apply(this, arguments_);
 
 				for (resolve of resolveList) {
 					resolve(result);
@@ -25,7 +25,7 @@ const pDebounce = (fn, wait, options = {}) => {
 				resolveList = [];
 			}, wait);
 
-			if (runImmediately) {
+			if (shouldCallNow) {
 				leadingValue = fn.apply(this, arguments_);
 				resolve(leadingValue);
 			} else {
