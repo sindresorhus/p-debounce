@@ -18,7 +18,9 @@ const expensiveCall = async input => input;
 const debouncedFn = pDebounce(expensiveCall, 200);
 
 for (const number of [1, 2, 3]) {
-	console.log(await debouncedFn(number));
+	debouncedFn(number).then((res)=>{
+		console.log(res);
+	})
 }
 //=> 3
 //=> 3
@@ -76,11 +78,13 @@ const expensiveCall = async value => {
 const debouncedFn = pDebounce.promise(expensiveCall);
 
 for (const number of [1, 2, 3]) {
-	console.log(await debouncedFn(number));
+	debouncedFn(number).then((res)=>{
+	        console.log(res);
+	})
 }
 //=> 1
-//=> 2
-//=> 3
+//=> 1
+//=> 1
 ```
 
 ## Related
