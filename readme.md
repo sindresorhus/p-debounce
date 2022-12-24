@@ -4,8 +4,8 @@
 
 ## Install
 
-```
-$ npm install p-debounce
+```sh
+npm install p-debounce
 ```
 
 ## Usage
@@ -15,10 +15,12 @@ import pDebounce from 'p-debounce';
 
 const expensiveCall = async input => input;
 
-const debouncedFn = pDebounce(expensiveCall, 200);
+const debouncedFunction = pDebounce(expensiveCall, 200);
 
 for (const number of [1, 2, 3]) {
-	console.log(await debouncedFn(number));
+	(async () => {
+		console.log(await debouncedFunction(number));
+	})();
 }
 //=> 3
 //=> 3
@@ -73,14 +75,16 @@ const expensiveCall = async value => {
 	return value;
 }
 
-const debouncedFn = pDebounce.promise(expensiveCall);
+const debouncedFunction = pDebounce.promise(expensiveCall);
 
 for (const number of [1, 2, 3]) {
-	console.log(await debouncedFn(number));
+	(async () => {
+		console.log(await debouncedFunction(number));
+	})();
 }
 //=> 1
-//=> 2
-//=> 3
+//=> 1
+//=> 1
 ```
 
 ## Related
