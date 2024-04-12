@@ -78,9 +78,7 @@ const expensiveCall = async value => {
 const debouncedFn = pDebounce.promise(expensiveCall);
 
 for (const number of [1, 2, 3]) {
-	(async () => {
-		console.log(await debouncedFn(number));
-	})();
+	console.log(await debouncedFn(number));
 }
 //=> 1
 //=> 2
