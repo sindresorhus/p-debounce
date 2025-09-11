@@ -60,7 +60,7 @@ Call the `fn` on the [leading edge of the timeout](https://css-tricks.com/deboun
 
 Type: `AbortSignal`
 
-An `AbortSignal` to cancel the debounced function.
+An [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) to cancel the debounced function.
 
 ### pDebounce.promise(function_)
 

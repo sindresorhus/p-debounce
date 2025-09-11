@@ -1,18 +1,16 @@
-declare namespace pDebounce {
-	interface Options {
-		/**
-		Call the `fn` on the [leading edge of the timeout](https://css-tricks.com/debouncing-throttling-explained-examples/#article-header-id-1). Meaning immediately, instead of waiting for `wait` milliseconds.
+export type Options = {
+	/**
+	Call the `fn` on the [leading edge of the timeout](https://css-tricks.com/debouncing-throttling-explained-examples/#article-header-id-1). Meaning immediately, instead of waiting for `wait` milliseconds.
 
-		@default false
-		*/
-		readonly before?: boolean;
+	@default false
+	*/
+	readonly before?: boolean;
 
-		/**
-		An `AbortSignal` to cancel the debounced function.
-		*/
-		readonly signal?: AbortSignal;
-	}
-}
+	/**
+	An `AbortSignal` to cancel the debounced function.
+	*/
+	readonly signal?: AbortSignal;
+};
 
 declare const pDebounce: {
 	/**
@@ -40,11 +38,11 @@ declare const pDebounce: {
 	//=> 3
 	```
 	*/
-	<ArgumentsType extends unknown[], ReturnType>(
-		fn: (...arguments: ArgumentsType) => PromiseLike<ReturnType> | ReturnType,
+	<This, ArgumentsType extends unknown[], ReturnType>(
+		fn: (this: This, ...arguments: ArgumentsType) => PromiseLike<ReturnType> | ReturnType,
 		wait: number,
-		options?: pDebounce.Options
-	): (...arguments: ArgumentsType) => Promise<ReturnType>;
+		options?: Options
+	): (this: This, ...arguments: ArgumentsType) => Promise<ReturnType>;
 
 	/**
 	Execute `function_` unless a previous call is still pending, in which case, return the pending promise. Useful, for example, to avoid processing extra button clicks if the previous one is not complete.
@@ -73,9 +71,9 @@ declare const pDebounce: {
 	//=> 1
 	```
 	*/
-	promise<ArgumentsType extends unknown[], ReturnType>(
-		function_: (...arguments: ArgumentsType) => PromiseLike<ReturnType> | ReturnType
-	): (...arguments: ArgumentsType) => Promise<ReturnType>;
+	promise<This, ArgumentsType extends unknown[], ReturnType>(
+		function_: (this: This, ...arguments: ArgumentsType) => PromiseLike<ReturnType> | ReturnType
+	): (this: This, ...arguments: ArgumentsType) => Promise<ReturnType>;
 };
 
 export default pDebounce;

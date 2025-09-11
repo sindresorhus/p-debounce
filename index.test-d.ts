@@ -8,16 +8,10 @@ expectType<(input: number) => Promise<number>>(pDebounce(expensiveCall, 200));
 
 // Test with signal option
 const controller = new AbortController();
-expectType<(input: number) => Promise<number>>(
-	pDebounce(expensiveCall, 200, {signal: controller.signal})
-);
+expectType<(input: number) => Promise<number>>(pDebounce(expensiveCall, 200, {signal: controller.signal}));
 
 // Test with before option
-expectType<(input: number) => Promise<number>>(
-	pDebounce(expensiveCall, 200, {before: true})
-);
+expectType<(input: number) => Promise<number>>(pDebounce(expensiveCall, 200, {before: true}));
 
 // Test promise method
-expectType<(input: number) => Promise<number>>(
-	pDebounce.promise(expensiveCall)
-);
+expectType<(input: number) => Promise<number>>(pDebounce.promise(expensiveCall));
