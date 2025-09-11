@@ -6,6 +6,11 @@ declare namespace pDebounce {
 		@default false
 		*/
 		readonly before?: boolean;
+
+		/**
+		An `AbortSignal` to cancel the debounced function.
+		*/
+		readonly signal?: AbortSignal;
 	}
 }
 

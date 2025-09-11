@@ -6,9 +6,17 @@ const pDebounce = (fn, wait, options = {}) => {
 	let leadingValue;
 	let timeout;
 	let resolveList = [];
+	let rejectList = [];
 
 	return function (...arguments_) {
-		return new Promise(resolve => {
+		return new Promise((resolve, reject) => {
+			try {
+				options.signal?.throwIfAborted();
+			} catch (error) {
+				reject(error);
+				return;
+			}
+
 			const shouldCallNow = options.before && !timeout;
 
 			clearTimeout(timeout);
@@ -18,11 +26,12 @@ const pDebounce = (fn, wait, options = {}) => {
 
 				const result = options.before ? leadingValue : fn.apply(this, arguments_);
 
-				for (resolve of resolveList) {
-					resolve(result);
+				for (const resolveFunction of resolveList) {
+					resolveFunction(result);
 				}
 
 				resolveList = [];
+				rejectList = [];
 			}, wait);
 
 			if (shouldCallNow) {
@@ -30,6 +39,25 @@ const pDebounce = (fn, wait, options = {}) => {
 				resolve(leadingValue);
 			} else {
 				resolveList.push(resolve);
+				rejectList.push(reject);
+
+				if (options.signal) {
+					options.signal.addEventListener('abort', () => {
+						clearTimeout(timeout);
+						timeout = null;
+
+						try {
+							options.signal.throwIfAborted();
+						} catch (error) {
+							for (const rejectFunction of rejectList) {
+								rejectFunction(error);
+							}
+
+							resolveList = [];
+							rejectList = [];
+						}
+					}, {once: true});
+				}
 			}
 		});
 	};

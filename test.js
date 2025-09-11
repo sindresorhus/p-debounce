@@ -141,3 +141,115 @@ for (const [name, debounceFn] of preserveThisCases) {
 		t.is(await thisFixture.foo(), fixture);
 	});
 }
+
+test('AbortSignal cancels debounced calls', async t => {
+	let callCount = 0;
+	const controller = new AbortController();
+
+	const debounced = pDebounce(async value => {
+		callCount++;
+		await delay(50);
+		return value;
+	}, 100, {
+		signal: controller.signal
+	});
+
+	const promise = debounced(1);
+
+	controller.abort();
+
+	await t.throwsAsync(promise, {
+		name: 'AbortError'
+	});
+
+	t.is(callCount, 0);
+});
+
+test('already aborted signal prevents execution', async t => {
+	const controller = new AbortController();
+	controller.abort();
+
+	const debounced = pDebounce(async value => value, 100, {
+		signal: controller.signal
+	});
+
+	const promise = debounced(1);
+
+	await t.throwsAsync(promise, {
+		name: 'AbortError'
+	});
+});
+
+test('AbortSignal works with before option', async t => {
+	let callCount = 0;
+	const controller = new AbortController();
+
+	const debounced = pDebounce(async value => {
+		callCount++;
+		await delay(50);
+		return value;
+	}, 100, {before: true, signal: controller.signal});
+
+	// First call executes immediately
+	const promise1 = debounced(1);
+	const result1 = await promise1;
+	t.is(result1, 1);
+	t.is(callCount, 1);
+
+	// Second call is pending
+	const promise2 = debounced(2);
+
+	// Abort before timeout
+	controller.abort();
+
+	await t.throwsAsync(promise2, {
+		name: 'AbortError'
+	});
+
+	// Call count should still be 1 (only first call executed)
+	t.is(callCount, 1);
+});
+
+test('multiple promises are cancelled together with AbortSignal', async t => {
+	let callCount = 0;
+	const controller = new AbortController();
+
+	const debounced = pDebounce(async value => {
+		callCount++;
+		return value;
+	}, 100, {
+		signal: controller.signal
+	});
+
+	const promise1 = debounced(1);
+	const promise2 = debounced(2);
+	const promise3 = debounced(3);
+
+	controller.abort();
+
+	await t.throwsAsync(promise1, {name: 'AbortError'});
+	await t.throwsAsync(promise2, {name: 'AbortError'});
+	await t.throwsAsync(promise3, {name: 'AbortError'});
+
+	t.is(callCount, 0);
+});
+
+test('function still works after AbortSignal cancellation', async t => {
+	const controller1 = new AbortController();
+	const debounced = pDebounce(async value => value, 100, {
+		signal: controller1.signal
+	});
+
+	// Cancel initial call
+	const promise1 = debounced(1);
+	controller1.abort();
+	await t.throwsAsync(promise1);
+
+	// Should work normally with new signal after cancellation
+	const controller2 = new AbortController();
+	const debounced2 = pDebounce(async value => value, 100, {
+		signal: controller2.signal
+	});
+	const result = await debounced2(2);
+	t.is(result, 2);
+});
