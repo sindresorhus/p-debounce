@@ -494,3 +494,31 @@ test('mixed successful and failed calls', async () => {
 	const result3 = await debounced(3);
 	assert.equal(result3, 3);
 });
+
+test('error handling - documents behavior for issue #7', async () => {
+	const errorMessage = 'Test error for issue #7';
+	let callCount = 0;
+
+	const debounced = pDebounce(async () => {
+		callCount++;
+		await delay(10);
+		throw new Error(errorMessage);
+	}, 50);
+
+	// Make multiple calls that should all be debounced together
+	const promise1 = debounced();
+	const promise2 = debounced();
+	const promise3 = debounced();
+
+	// All promises should reject with the same error (issue #7 behavior)
+	const results = await Promise.allSettled([promise1, promise2, promise3]);
+
+	// Verify function was only called once due to debouncing
+	assert.equal(callCount, 1);
+
+	// Verify all calls were rejected with the same error
+	for (const result of results) {
+		assert.equal(result.status, 'rejected');
+		assert.equal(result.reason.message, errorMessage);
+	}
+});
