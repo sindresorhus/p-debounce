@@ -79,7 +79,7 @@ import pDebounce from 'p-debounce';
 const expensiveCall = async value => {
 	await delay(200);
 	return value;
-}
+};
 
 const debouncedFunction = pDebounce.promise(expensiveCall);
 

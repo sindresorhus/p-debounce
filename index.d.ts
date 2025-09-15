@@ -57,7 +57,7 @@ declare const pDebounce: {
 	const expensiveCall = async value => {
 		await delay(200);
 		return value;
-	}
+	};
 
 	const debouncedFunction = pDebounce.promise(expensiveCall);
 

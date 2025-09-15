@@ -8,11 +8,6 @@ const pDebounce = (function_, wait, options = {}) => {
 	let resolveList = [];
 	let rejectList = [];
 
-	const cleanup = () => {
-		resolveList = [];
-		rejectList = [];
-	};
-
 	const onAbort = () => {
 		clearTimeout(timeout);
 		timeout = null;
@@ -24,7 +19,8 @@ const pDebounce = (function_, wait, options = {}) => {
 				reject(error);
 			}
 
-			cleanup();
+			resolveList = [];
+			rejectList = [];
 		}
 	};
 
@@ -45,19 +41,25 @@ const pDebounce = (function_, wait, options = {}) => {
 			timeout = setTimeout(async () => {
 				timeout = null;
 
+				// Capture the current resolve/reject lists for this execution
+				const currentResolveList = resolveList;
+				const currentRejectList = rejectList;
+
+				// Clear lists for next cycle (new calls during execution will add to new lists)
+				resolveList = [];
+				rejectList = [];
+
 				try {
 					const result = options.before ? leadingValue : await function_.apply(this, arguments_);
 
-					for (const resolveFunction of resolveList) {
+					for (const resolveFunction of currentResolveList) {
 						resolveFunction(result);
 					}
 				} catch (error) {
-					for (const rejectFunction of rejectList) {
+					for (const rejectFunction of currentRejectList) {
 						rejectFunction(error);
 					}
 				}
-
-				cleanup();
 
 				// Clear leading value for next cycle
 				leadingValue = undefined;
@@ -68,21 +70,14 @@ const pDebounce = (function_, wait, options = {}) => {
 
 			if (shouldCallNow) {
 				// Execute immediately for leading edge
-				try {
-					const result = function_.apply(this, arguments_);
-					if (result && typeof result.then === 'function') {
-						// eslint-disable-next-line promise/prefer-await-to-then
-						result.catch(reject).then(value => {
-							leadingValue = value;
-							resolve(value);
-						});
-					} else {
-						leadingValue = result;
-						resolve(result);
+				(async () => {
+					try {
+						leadingValue = await function_.apply(this, arguments_);
+						resolve(leadingValue);
+					} catch (error) {
+						reject(error);
 					}
-				} catch (error) {
-					reject(error);
-				}
+				})();
 			} else {
 				// Add to lists for later resolution
 				resolveList.push(resolve);

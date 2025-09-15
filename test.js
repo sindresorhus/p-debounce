@@ -522,3 +522,589 @@ test('error handling - documents behavior for issue #7', async () => {
 		assert.equal(result.reason.message, errorMessage);
 	}
 });
+
+test('calls made during function execution resolve with correct values', async () => {
+	let callCount = 0;
+
+	const slowFunction = async value => {
+		callCount++;
+		await delay(100);
+		return value;
+	};
+
+	const debounced = pDebounce(slowFunction, 50);
+
+	// First call starts the debounce
+	const promise1 = debounced('first');
+
+	// Wait for debounce to trigger
+	await delay(60);
+
+	// Make calls while function is executing
+	const promise2 = debounced('second');
+	const promise3 = debounced('third');
+
+	const [result1, result2, result3] = await Promise.all([promise1, promise2, promise3]);
+
+	// First call should resolve with its own result
+	assert.equal(result1, 'first');
+
+	// Calls made during execution should resolve with the latest argument
+	assert.equal(result2, 'third');
+	assert.equal(result3, 'third');
+
+	// Function should execute twice
+	assert.equal(callCount, 2);
+});
+
+test('concurrent debounced functions do not interfere', async () => {
+	const calls1 = [];
+	const calls2 = [];
+
+	const debounced1 = pDebounce(async value => {
+		calls1.push(value);
+		await delay(50);
+		return `fn1-${value}`;
+	}, 30);
+
+	const debounced2 = pDebounce(async value => {
+		calls2.push(value);
+		await delay(50);
+		return `fn2-${value}`;
+	}, 30);
+
+	const [r1, r2, r3, r4] = await Promise.all([
+		debounced1('a'),
+		debounced2('x'),
+		debounced1('b'),
+		debounced2('y'),
+	]);
+
+	assert.equal(r1, 'fn1-b');
+	assert.equal(r3, 'fn1-b');
+	assert.equal(r2, 'fn2-y');
+	assert.equal(r4, 'fn2-y');
+	assert.deepEqual(calls1, ['b']);
+	assert.deepEqual(calls2, ['y']);
+});
+
+test('extremely short wait time (0ms)', async () => {
+	let callCount = 0;
+	const debounced = pDebounce(async value => {
+		callCount++;
+		return value;
+	}, 0);
+
+	const p1 = debounced(1);
+	const p2 = debounced(2);
+	const p3 = debounced(3);
+
+	const results = await Promise.all([p1, p2, p3]);
+
+	assert.deepEqual(results, [3, 3, 3]);
+	assert.equal(callCount, 1);
+});
+
+test('before option with synchronous function', async () => {
+	const calls = [];
+	const debounced = pDebounce(value => {
+		calls.push(value);
+		return value * 2;
+	}, 50, {before: true});
+
+	const results = await Promise.all([
+		debounced(1),
+		debounced(2),
+		debounced(3),
+	]);
+
+	assert.deepEqual(results, [2, 2, 2]);
+	assert.deepEqual(calls, [1]);
+});
+
+test('abort signal during different phases', async () => {
+	const controller1 = new AbortController();
+	const controller2 = new AbortController();
+	const controller3 = new AbortController();
+
+	const fn = async value => {
+		await delay(100);
+		return value;
+	};
+
+	const debounced1 = pDebounce(fn, 50, {signal: controller1.signal});
+	const debounced2 = pDebounce(fn, 50, {signal: controller2.signal});
+	const debounced3 = pDebounce(fn, 50, {signal: controller3.signal});
+
+	// Abort before any call
+	controller1.abort();
+	await assert.rejects(debounced1(1), {name: 'AbortError'});
+
+	// Abort during wait period
+	const p2 = debounced2(2);
+	await delay(25);
+	controller2.abort();
+	await assert.rejects(p2, {name: 'AbortError'});
+
+	// Abort during execution
+	const p3 = debounced3(3);
+	await delay(60); // Let it start executing
+	controller3.abort();
+	const result = await p3; // Should still complete
+	assert.equal(result, 3);
+});
+
+test('error propagation to all waiting promises', async () => {
+	const error = new Error('Test error');
+	let shouldThrow = true;
+
+	const debounced = pDebounce(async value => {
+		if (shouldThrow) {
+			throw error;
+		}
+
+		return value;
+	}, 50);
+
+	const promises = Array.from({length: 10}, (_, i) => debounced(i));
+
+	const results = await Promise.allSettled(promises);
+
+	// All should be rejected with the same error
+	for (const result of results) {
+		assert.equal(result.status, 'rejected');
+		assert.equal(result.reason, error);
+	}
+
+	// Subsequent calls should work
+	shouldThrow = false;
+	const result = await debounced(42);
+	assert.equal(result, 42);
+});
+
+test('wait parameter validation', async () => {
+	assert.throws(() => pDebounce(() => {}, Number.NaN), TypeError);
+	assert.throws(() => pDebounce(() => {}, Number.POSITIVE_INFINITY), TypeError);
+	assert.throws(() => pDebounce(() => {}, Number.NEGATIVE_INFINITY), TypeError);
+	assert.throws(() => pDebounce(() => {}, 'not a number'), TypeError);
+
+	// These should work
+	assert.doesNotThrow(() => pDebounce(() => {}, 0));
+	assert.doesNotThrow(() => pDebounce(() => {}, -100)); // Negative waits work like 0
+	assert.doesNotThrow(() => pDebounce(() => {}, 1.5)); // Decimals are fine
+});
+
+test('before option with errors in leading call', async () => {
+	const error = new Error('Leading error');
+	let callCount = 0;
+	const debounced = pDebounce(() => {
+		callCount++;
+		throw error;
+	}, 50, {before: true});
+
+	await assert.rejects(debounced(1), error);
+
+	// Only called once due to before option
+	assert.equal(callCount, 1);
+});
+
+test('complex argument passing', async () => {
+	const debounced = pDebounce(async (...args) => args, 50);
+
+	const object = {foo: 'bar'};
+	const array = [1, 2, 3];
+	const fn = () => {};
+
+	const result = await debounced(object, array, fn, undefined, null, 42);
+
+	assert.deepEqual(result[0], object);
+	assert.deepEqual(result[1], array);
+	assert.equal(result[2], fn);
+	assert.equal(result[3], undefined);
+	assert.equal(result[4], null);
+	assert.equal(result[5], 42);
+});
+
+test('maintains proper promise resolution order', async () => {
+	const executionOrder = [];
+	let executionCount = 0;
+
+	const debounced = pDebounce(async value => {
+		executionCount++;
+		const currentExecution = executionCount;
+		await delay(value === 'slow' ? 150 : 50);
+		executionOrder.push({value, execution: currentExecution});
+		return value;
+	}, 30);
+
+	// First call - slow execution
+	const p1 = debounced('slow');
+	await delay(35); // Let it start
+
+	// Calls during execution
+	const p2 = debounced('fast1');
+	const p3 = debounced('fast2');
+
+	const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
+
+	// First call gets its own result
+	assert.equal(r1, 'slow');
+
+	// Calls during execution get the latest argument
+	assert.equal(r2, 'fast2');
+	assert.equal(r3, 'fast2');
+
+	// Should have executed twice
+	assert.equal(executionCount, 2);
+});
+
+test('debounce with negative wait time', async () => {
+	let callCount = 0;
+	const debounced = pDebounce(async value => {
+		callCount++;
+		return value;
+	}, -50); // Negative wait should work like 0
+
+	const results = await Promise.all([
+		debounced(1),
+		debounced(2),
+		debounced(3),
+	]);
+
+	assert.deepEqual(results, [3, 3, 3]);
+	assert.equal(callCount, 1);
+});
+
+test('abort signal removed after successful execution', async () => {
+	const controller = new AbortController();
+	const {signal} = controller;
+
+	const debounced = pDebounce(async value => {
+		await delay(50);
+		return value;
+	}, 100, {signal});
+
+	// Make a call and let it complete
+	const result = await debounced('test');
+	assert.equal(result, 'test');
+
+	// Abort after completion shouldn't affect new calls
+	controller.abort();
+
+	// New call with new controller should work
+	const controller2 = new AbortController();
+	const debounced2 = pDebounce(async value => value, 50, {signal: controller2.signal});
+	const result2 = await debounced2('test2');
+	assert.equal(result2, 'test2');
+});
+
+test('multiple debounced functions with before option', async () => {
+	const calls = [];
+
+	const d1 = pDebounce(v => {
+		calls.push(`d1-${v}`);
+		return `d1-${v}`;
+	}, 50, {before: true});
+
+	const d2 = pDebounce(v => {
+		calls.push(`d2-${v}`);
+		return `d2-${v}`;
+	}, 50, {before: true});
+
+	// Call both in quick succession
+	const [r1, r2, r3, r4] = await Promise.all([
+		d1('a'),
+		d2('x'),
+		d1('b'),
+		d2('y'),
+	]);
+
+	assert.equal(r1, 'd1-a');
+	assert.equal(r2, 'd2-x');
+	assert.equal(r3, 'd1-a'); // Same as r1 due to before option
+	assert.equal(r4, 'd2-x'); // Same as r2 due to before option
+	assert.deepEqual(calls, ['d1-a', 'd2-x']);
+});
+
+test('debounce function returning undefined', async () => {
+	let callCount = 0;
+	const debounced = pDebounce(() => {
+		callCount++;
+		// Implicitly returns undefined
+	}, 50);
+
+	const results = await Promise.all([
+		debounced(),
+		debounced(),
+		debounced(),
+	]);
+
+	assert.equal(callCount, 1);
+	assert.deepEqual(results, [undefined, undefined, undefined]);
+});
+
+test('edge case: call during abort signal cleanup', async () => {
+	const controller = new AbortController();
+	let callCount = 0;
+
+	const debounced = pDebounce(async value => {
+		callCount++;
+		await delay(100);
+		return value;
+	}, 50, {signal: controller.signal});
+
+	const p1 = debounced(1);
+
+	// Wait for function to start
+	await delay(60);
+
+	// Abort while function is executing
+	controller.abort();
+
+	// Make new call immediately - should be rejected because signal is aborted
+	// eslint-disable-next-line promise/prefer-await-to-then
+	const p2 = debounced(2).catch(() => {}); // Handle the rejection
+
+	// First call should complete despite abort happening during execution
+	const result1 = await p1;
+	assert.equal(result1, 1);
+
+	// Second call should have been rejected (handled above)
+	await p2;
+	assert.equal(callCount, 1);
+});
+
+test('callstack is preserved in debounced function', async () => {
+	let capturedStack;
+
+	const debounced = pDebounce(async () => {
+		capturedStack = new Error('Stack trace').stack;
+		return 'done';
+	}, 50);
+
+	async function namedFunction() {
+		return debounced();
+	}
+
+	await namedFunction();
+
+	// Stack trace should be captured
+	assert.ok(capturedStack, 'Stack trace should be captured');
+	assert.ok(capturedStack.includes('Error'), 'Stack trace should include Error');
+});
+
+test('zero timeout executes in next tick', async () => {
+	const executionOrder = [];
+
+	const debounced = pDebounce(async () => {
+		executionOrder.push('debounced');
+	}, 0);
+
+	debounced();
+	executionOrder.push('sync');
+
+	await delay(1);
+
+	assert.deepEqual(executionOrder, ['sync', 'debounced']);
+});
+
+test('debounce with AbortSignal.timeout', async () => {
+	// Skip if AbortSignal.timeout is not available (Node 16+)
+	if (typeof AbortSignal.timeout !== 'function') {
+		return;
+	}
+
+	const debounced = pDebounce(async value => {
+		await delay(200);
+		return value;
+	}, 150, {signal: AbortSignal.timeout(100)});
+
+	const promise = debounced('test');
+
+	// Should abort after 100ms timeout (during the debounce wait period)
+	// Different Node versions may use different error names
+	await assert.rejects(promise, error => error.name === 'TimeoutError' || error.name === 'AbortError');
+});
+
+test('before option with async error in leading call', async () => {
+	const error = new Error('Async leading error');
+	const debounced = pDebounce(async () => {
+		await delay(10);
+		throw error;
+	}, 50, {before: true});
+
+	const p1 = debounced(1);
+	const p2 = debounced(2);
+
+	// First call executes immediately and should reject
+	await assert.rejects(p1, error);
+
+	// Second call waits for timeout and resolves with cached leadingValue (undefined since first call errored)
+	const result2 = await p2;
+	assert.equal(result2, undefined);
+});
+
+test('promise resolution with null and undefined', async () => {
+	const debounced = pDebounce(async value => value, 50);
+
+	const [r1, r2, r3] = await Promise.all([
+		debounced(null),
+		debounced(undefined),
+		debounced(),
+	]);
+
+	assert.equal(r1, undefined); // Last call had no arguments
+	assert.equal(r2, undefined);
+	assert.equal(r3, undefined);
+});
+
+test('multiple abort controllers on same debounced function', async () => {
+	const controller1 = new AbortController();
+	const controller2 = new AbortController();
+
+	const fn = async value => {
+		await delay(100);
+		return value;
+	};
+
+	const debounced1 = pDebounce(fn, 50, {signal: controller1.signal});
+	const debounced2 = pDebounce(fn, 50, {signal: controller2.signal});
+
+	const p1 = debounced1(1);
+	const p2 = debounced2(2);
+
+	// Abort only the first one
+	controller1.abort();
+
+	await assert.rejects(p1, {name: 'AbortError'});
+
+	// Second should complete normally
+	const result2 = await p2;
+	assert.equal(result2, 2);
+});
+
+test('debounce preserves promise rejection details', async () => {
+	const customError = new TypeError('Custom type error');
+	customError.code = 'CUSTOM_CODE';
+	customError.details = {foo: 'bar'};
+
+	const debounced = pDebounce(async () => {
+		throw customError;
+	}, 50);
+
+	try {
+		await debounced();
+		assert.fail('Should have thrown');
+	} catch (error) {
+		assert.equal(error, customError);
+		assert.equal(error.code, 'CUSTOM_CODE');
+		assert.deepEqual(error.details, {foo: 'bar'});
+	}
+});
+
+test('simultaneous before and non-before debounced functions', async () => {
+	const calls = [];
+
+	const debouncedBefore = pDebounce(value => {
+		calls.push(`before-${value}`);
+		return `before-${value}`;
+	}, 50, {before: true});
+
+	const debouncedAfter = pDebounce(value => {
+		calls.push(`after-${value}`);
+		return `after-${value}`;
+	}, 50);
+
+	const [r1, r2, r3, r4] = await Promise.all([
+		debouncedBefore('a'),
+		debouncedBefore('b'),
+		debouncedAfter('x'),
+		debouncedAfter('y'),
+	]);
+
+	assert.equal(r1, 'before-a');
+	assert.equal(r2, 'before-a');
+	assert.equal(r3, 'after-y');
+	assert.equal(r4, 'after-y');
+	assert.deepEqual(calls, ['before-a', 'after-y']);
+});
+
+test('nested debounced functions', async () => {
+	const innerCalls = [];
+	const outerCalls = [];
+
+	const innerDebounced = pDebounce(async value => {
+		innerCalls.push(value);
+		return `inner-${value}`;
+	}, 30);
+
+	const outerDebounced = pDebounce(async value => {
+		outerCalls.push(value);
+		const innerResult = await innerDebounced(value);
+		return `outer(${innerResult})`;
+	}, 50);
+
+	const result = await outerDebounced('test');
+
+	assert.equal(result, 'outer(inner-test)');
+	assert.deepEqual(outerCalls, ['test']);
+	assert.deepEqual(innerCalls, ['test']);
+});
+
+test('race condition: new call right at timeout boundary', async () => {
+	let callCount = 0;
+	const results = [];
+
+	const debounced = pDebounce(async value => {
+		callCount++;
+		results.push(value);
+		return value;
+	}, 50);
+
+	const p1 = debounced(1);
+
+	// Wait exactly the debounce time
+	await delay(50);
+
+	// Call right when timeout fires
+	const p2 = debounced(2);
+
+	const [r1, r2] = await Promise.all([p1, p2]);
+
+	// Should have been called twice
+	assert.equal(callCount, 2);
+	assert.deepEqual(results, [1, 2]);
+	assert.equal(r1, 1);
+	assert.equal(r2, 2);
+});
+
+test('function with Symbol return value', async () => {
+	const sym = Symbol('test');
+	const debounced = pDebounce(async () => sym, 50);
+
+	const result = await debounced();
+	assert.equal(result, sym);
+});
+
+test('concurrent calls with different this contexts', async () => {
+	const contexts = [];
+
+	const debounced = pDebounce(async function (value) {
+		contexts.push(this);
+		return value;
+	}, 50);
+
+	const object1 = {name: 'object1', fn: debounced};
+	const object2 = {name: 'object2', fn: debounced};
+
+	const [r1, r2] = await Promise.all([
+		object1.fn('a'),
+		object2.fn('b'),
+	]);
+
+	// Both should use the last context
+	assert.equal(contexts.length, 1);
+	assert.equal(contexts[0], object2);
+	assert.equal(r1, 'b');
+	assert.equal(r2, 'b');
+});
