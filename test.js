@@ -46,6 +46,38 @@ test('.promise()', async () => {
 	assert.equal(await debounced(), 2);
 });
 
+test('.promise() - concurrent calls return same promise', async () => {
+	let callCount = 0;
+	const calls = [];
+
+	const debounced = pDebounce.promise(async value => {
+		callCount++;
+		calls.push(value);
+		await delay(50);
+		return value;
+	});
+
+	// Make multiple calls while first is executing
+	const p1 = debounced('first');
+	const p2 = debounced('second');
+	await delay(10); // During execution
+	const p3 = debounced('third');
+
+	const [r1, r2, r3] = await Promise.all([p1, p2, p3]);
+
+	// All should get result of first execution
+	assert.equal(r1, 'first');
+	assert.equal(r2, 'first');
+	assert.equal(r3, 'first');
+
+	// Wait to ensure no background execution
+	await delay(60);
+
+	// Should have been called only once with 'first'
+	assert.equal(callCount, 1);
+	assert.deepEqual(calls, ['first']);
+});
+
 test('before option', async () => {
 	let count = 0;
 
@@ -281,13 +313,13 @@ test('abort listener is cleaned up after normal completion', async () => {
 test('multiple abort signals are handled correctly without leaks', async () => {
 	// Test with multiple signals to ensure no leaks
 	const promises = [];
-	for (let i = 0; i < 5; i++) {
+	for (let index = 0; index < 5; index++) {
 		const controller = new AbortController();
 		const debounced = pDebounce(async value => value, 50, {
 			signal: controller.signal,
 		});
 
-		promises.push(debounced(i));
+		promises.push(debounced(index));
 	}
 
 	await Promise.all(promises);
@@ -439,13 +471,13 @@ test('rapid abort signals do not cause memory leaks', async () => {
 	// Create and abort many signals in rapid succession
 	const promises = [];
 
-	for (let i = 0; i < 100; i++) {
+	for (let index = 0; index < 100; index++) {
 		const controller = new AbortController();
 		const debounced = pDebounce(async value => value, 50, {
 			signal: controller.signal,
 		});
 
-		const promise = debounced(i);
+		const promise = debounced(index);
 		controller.abort();
 		// eslint-disable-next-line promise/prefer-await-to-then
 		promises.push(promise.catch(() => {})); // Ignore rejections
@@ -1107,4 +1139,145 @@ test('concurrent calls with different this contexts', async () => {
 	assert.equal(contexts[0], object2);
 	assert.equal(r1, 'b');
 	assert.equal(r2, 'b');
+});
+
+test('context preservation in pDebounce', async () => {
+	const results = [];
+
+	class TestClass {
+		constructor(name) {
+			this.name = name;
+		}
+
+		async method(value) {
+			results.push({name: this.name, value});
+			return `${this.name}-${value}`;
+		}
+	}
+
+	const instance = new TestClass('test');
+	instance.debouncedMethod = pDebounce(instance.method, 50);
+
+	const result = await instance.debouncedMethod('hello');
+
+	assert.equal(result, 'test-hello');
+	assert.equal(results.length, 1);
+	assert.equal(results[0].name, 'test');
+	assert.equal(results[0].value, 'hello');
+});
+
+test('context preservation in pDebounce.promise', async () => {
+	const results = [];
+
+	class TestClass {
+		constructor(name) {
+			this.name = name;
+		}
+
+		async method(value) {
+			results.push({name: this.name, value});
+			return `${this.name}-${value}`;
+		}
+	}
+
+	const instance = new TestClass('promise-test');
+	instance.debouncedMethod = pDebounce.promise(instance.method);
+
+	const result = await instance.debouncedMethod('world');
+
+	assert.equal(result, 'promise-test-world');
+	assert.equal(results.length, 1);
+	assert.equal(results[0].name, 'promise-test');
+	assert.equal(results[0].value, 'world');
+});
+
+test('arguments preservation in complex scenarios', async () => {
+	const calls = [];
+
+	const fn = pDebounce(async (...args) => {
+		calls.push(args);
+		return args;
+	}, 50);
+
+	const complexObject = {deep: {nested: 'value'}};
+	const array = [1, 2, 3];
+	const func = () => 'function';
+
+	const result = await fn(complexObject, array, func, null, undefined, 42);
+
+	assert.equal(calls.length, 1);
+	assert.deepEqual(calls[0][0], complexObject);
+	assert.deepEqual(calls[0][1], array);
+	assert.equal(calls[0][2], func);
+	assert.equal(calls[0][3], null);
+	assert.equal(calls[0][4], undefined);
+	assert.equal(calls[0][5], 42);
+	assert.deepEqual(result, [complexObject, array, func, null, undefined, 42]);
+});
+
+test('abort signal during various execution phases', async () => {
+	const controller1 = new AbortController();
+	const controller2 = new AbortController();
+	const controller3 = new AbortController();
+
+	let executionStarted = false;
+
+	const fn = async value => {
+		executionStarted = true;
+		await delay(100);
+		return value;
+	};
+
+	// Test 1: Abort before any calls
+	const debounced1 = pDebounce(fn, 50, {signal: controller1.signal});
+	controller1.abort();
+	await assert.rejects(debounced1(1), {name: 'AbortError'});
+
+	// Test 2: Abort during wait period
+	const debounced2 = pDebounce(fn, 200, {signal: controller2.signal});
+	const p2 = debounced2(2);
+	await delay(100); // Wait during debounce period
+	controller2.abort();
+	await assert.rejects(p2, {name: 'AbortError'});
+
+	// Test 3: Abort during function execution (should complete)
+	executionStarted = false;
+	const debounced3 = pDebounce(fn, 50, {signal: controller3.signal});
+	const p3 = debounced3(3);
+	await delay(60); // Wait for function to start
+	assert.ok(executionStarted, 'Function should have started');
+	controller3.abort();
+	const result3 = await p3; // Should complete despite abort
+	assert.equal(result3, 3);
+});
+
+test('memory cleanup after abort', async () => {
+	const controller = new AbortController();
+	let calls = 0;
+
+	const debounced = pDebounce(async () => {
+		calls++;
+		return 'result';
+	}, 50, {signal: controller.signal});
+
+	// Make multiple calls
+	const promises = [];
+	for (let index = 0; index < 5; index++) {
+		const promise = debounced(index);
+		// eslint-disable-next-line promise/prefer-await-to-then
+		promises.push(promise.catch(() => {})); // Ignore rejections
+	}
+
+	// Abort all
+	controller.abort();
+	await Promise.all(promises);
+
+	// Wait to ensure no delayed execution
+	await delay(100);
+
+	// Function should never have been called
+	assert.equal(calls, 0);
+
+	// New calls with same debounced function should still be rejected
+	await assert.rejects(debounced('new'), {name: 'AbortError'});
 });

@@ -5,8 +5,7 @@ const pDebounce = (function_, wait, options = {}) => {
 
 	let leadingValue;
 	let timeout;
-	let resolveList = [];
-	let rejectList = [];
+	let promiseHandlers = []; // Single array of {resolve, reject}
 
 	const onAbort = () => {
 		clearTimeout(timeout);
@@ -15,12 +14,11 @@ const pDebounce = (function_, wait, options = {}) => {
 		try {
 			options.signal?.throwIfAborted();
 		} catch (error) {
-			for (const reject of rejectList) {
+			for (const {reject} of promiseHandlers) {
 				reject(error);
 			}
 
-			resolveList = [];
-			rejectList = [];
+			promiseHandlers = [];
 		}
 	};
 
@@ -41,22 +39,20 @@ const pDebounce = (function_, wait, options = {}) => {
 			timeout = setTimeout(async () => {
 				timeout = null;
 
-				// Capture the current resolve/reject lists for this execution
-				const currentResolveList = resolveList;
-				const currentRejectList = rejectList;
+				// Capture the current handlers for this execution
+				const currentHandlers = promiseHandlers;
 
-				// Clear lists for next cycle (new calls during execution will add to new lists)
-				resolveList = [];
-				rejectList = [];
+				// Clear handlers for next cycle (new calls during execution will add to new list)
+				promiseHandlers = [];
 
 				try {
 					const result = options.before ? leadingValue : await function_.apply(this, arguments_);
 
-					for (const resolveFunction of currentResolveList) {
+					for (const {resolve: resolveFunction} of currentHandlers) {
 						resolveFunction(result);
 					}
 				} catch (error) {
-					for (const rejectFunction of currentRejectList) {
+					for (const {reject: rejectFunction} of currentHandlers) {
 						rejectFunction(error);
 					}
 				}
@@ -79,12 +75,11 @@ const pDebounce = (function_, wait, options = {}) => {
 					}
 				})();
 			} else {
-				// Add to lists for later resolution
-				resolveList.push(resolve);
-				rejectList.push(reject);
+				// Add to handlers for later resolution
+				promiseHandlers.push({resolve, reject});
 
 				// Set up abort listener (only once per batch)
-				if (options.signal && resolveList.length === 1) {
+				if (options.signal && promiseHandlers.length === 1) {
 					options.signal.addEventListener('abort', onAbort, {once: true});
 				}
 			}
