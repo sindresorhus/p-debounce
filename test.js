@@ -741,7 +741,7 @@ test('before option with errors in leading call', async () => {
 });
 
 test('complex argument passing', async () => {
-	const debounced = pDebounce(async (...args) => args, 50);
+	const debounced = pDebounce(async (...arguments_) => arguments_, 50);
 
 	const object = {foo: 'bar'};
 	const array = [1, 2, 3];
@@ -1194,9 +1194,9 @@ test('context preservation in pDebounce.promise', async () => {
 test('arguments preservation in complex scenarios', async () => {
 	const calls = [];
 
-	const fn = pDebounce(async (...args) => {
-		calls.push(args);
-		return args;
+	const fn = pDebounce(async (...arguments_) => {
+		calls.push(arguments_);
+		return arguments_;
 	}, 50);
 
 	const complexObject = {deep: {nested: 'value'}};
@@ -1280,4 +1280,218 @@ test('memory cleanup after abort', async () => {
 
 	// New calls with same debounced function should still be rejected
 	await assert.rejects(debounced('new'), {name: 'AbortError'});
+});
+
+test('.promise() with after option - basic behavior', async () => {
+	let callCount = 0;
+	const fn = async value => {
+		callCount++;
+		await delay(100);
+		return `${value}-${callCount}`;
+	};
+
+	const debounced = pDebounce.promise(fn, {after: true});
+
+	const promise1 = debounced('first');
+	const promise2 = debounced('second');
+
+	const result1 = await promise1;
+	const result2 = await promise2;
+
+	assert.equal(result1, 'first-1');
+	assert.equal(result2, 'second-2');
+	assert.equal(callCount, 2);
+});
+
+test('.promise() with after option - latest arguments win', async () => {
+	const results = [];
+	const fn = async value => {
+		results.push(value);
+		await delay(50);
+		return value;
+	};
+
+	const debounced = pDebounce.promise(fn, {after: true});
+
+	debounced('call1');
+	debounced('call2');
+	debounced('call3'); // Only this should execute after first completes
+
+	await delay(200);
+
+	assert.deepEqual(results, ['call1', 'call3']);
+});
+
+test('.promise() with after option - context preservation', async () => {
+	const object = {
+		value: 'test',
+		async method(suffix) {
+			await delay(50);
+			return `${this.value}-${suffix}`;
+		},
+	};
+
+	const debounced = pDebounce.promise(object.method, {after: true});
+
+	const promise1 = debounced.call(object, 'first');
+	const promise2 = debounced.call(object, 'second');
+
+	assert.equal(await promise1, 'test-first');
+	assert.equal(await promise2, 'test-second');
+});
+
+test('.promise() with after option - error handling', async () => {
+	let callCount = 0;
+	const fn = async value => {
+		callCount++;
+		await delay(50);
+		if (value === 'error') {
+			throw new Error('Test error');
+		}
+
+		return value;
+	};
+
+	const debounced = pDebounce.promise(fn, {after: true});
+
+	const promise1 = debounced('success');
+	const promise2 = debounced('error');
+
+	assert.equal(await promise1, 'success');
+	await assert.rejects(promise2, {message: 'Test error'});
+	assert.equal(callCount, 2);
+});
+
+test('.promise() with after option - no queue when no overlapping calls', async () => {
+	let callCount = 0;
+	const fn = async value => {
+		callCount++;
+		await delay(50);
+		return value;
+	};
+
+	const debounced = pDebounce.promise(fn, {after: true});
+
+	const result1 = await debounced('first');
+	const result2 = await debounced('second');
+
+	assert.equal(result1, 'first');
+	assert.equal(result2, 'second');
+	assert.equal(callCount, 2);
+});
+
+test('.promise() without after option - original behavior unchanged', async () => {
+	let callCount = 0;
+	const fn = async value => {
+		callCount++;
+		await delay(100);
+		return `${value}-${callCount}`;
+	};
+
+	const debounced = pDebounce.promise(fn);
+
+	const promise1 = debounced('first');
+	const promise2 = debounced('second');
+
+	const result1 = await promise1;
+	const result2 = await promise2;
+
+	assert.equal(result1, 'first-1');
+	assert.equal(result2, 'first-1'); // Same result, same promise
+	assert.equal(callCount, 1);
+});
+
+test('.promise() with after option - call during queued execution should resolve', async () => {
+	let executionCount = 0;
+	const executionOrder = [];
+	const fn = async value => {
+		executionCount++;
+		const id = executionCount;
+		executionOrder.push({value, id, phase: 'start'});
+		await delay(50);
+		executionOrder.push({value, id, phase: 'end'});
+		return `${value}-${id}`;
+	};
+
+	const debounced = pDebounce.promise(fn, {after: true});
+
+	// First call starts executing immediately
+	const promise1 = debounced('first');
+
+	// Second call during first execution - gets queued
+	const promise2 = debounced('second');
+
+	await delay(60);
+
+	const promise3 = debounced('third');
+
+	const [result1, result2, result3] = await Promise.all([promise1, promise2, promise3]);
+
+	assert.equal(result1, 'first-1');
+	assert.equal(result2, 'second-2');
+	assert.equal(result3, 'third-3');
+});
+
+test('.promise() with after option - multiple simultaneous queuers get same result', async () => {
+	const fn = async value => {
+		await delay(50);
+		return value;
+	};
+
+	const debounced = pDebounce.promise(fn, {after: true});
+
+	const promise1 = debounced('first');
+	const promise2 = debounced('second');
+	const promise3 = debounced('third');
+	const promise4 = debounced('fourth');
+
+	const [result1, result2, result3, result4] = await Promise.all([promise1, promise2, promise3, promise4]);
+
+	assert.equal(result1, 'first');
+	// All queued calls should use latest arguments
+	assert.equal(result2, 'fourth');
+	assert.equal(result3, 'fourth');
+	assert.equal(result4, 'fourth');
+});
+
+test('.promise() with after option - error in queued call followed by success', async () => {
+	const fn = async value => {
+		await delay(30);
+		if (value === 'error') {
+			throw new Error('Queued error');
+		}
+
+		return value;
+	};
+
+	const debounced = pDebounce.promise(fn, {after: true});
+
+	const promise1 = debounced('first');
+	const promise2 = debounced('error');
+
+	assert.equal(await promise1, 'first');
+	await assert.rejects(promise2, {message: 'Queued error'});
+
+	// Next call should still work after error
+	const promise3 = debounced('success');
+	assert.equal(await promise3, 'success');
+});
+
+test('.promise() with after option - error in initial call should still process queue', async () => {
+	const fn = async value => {
+		await delay(30);
+		if (value === 'error') {
+			throw new Error('Initial error');
+		}
+
+		return value;
+	};
+
+	const debounced = pDebounce.promise(fn, {after: true});
+
+	const promise1 = debounced('error');
+	const promise2 = debounced('success');
+
+	await assert.rejects(promise1, {message: 'Initial error'});
+	assert.equal(await promise2, 'success');
 });
