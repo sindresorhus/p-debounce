@@ -12,6 +12,39 @@ export type Options = {
 	readonly signal?: AbortSignal;
 };
 
+export type PromiseOptions = {
+	/**
+	If a call is made while a previous call is still running, queue the latest arguments and run the function again after the current execution completes.
+
+	@default false
+
+	Use cases:
+	- With `after: false` (default): API fetches, data loading, read operations - concurrent calls share the same result.
+	- With `after: true`: Saving data, file writes, state updates - ensures latest data is never lost.
+
+	@example
+	```
+	import {setTimeout as delay} from 'timers/promises';
+	import pDebounce from 'p-debounce';
+
+	const save = async data => {
+		await delay(200);
+		console.log(`Saved: ${data}`);
+		return data;
+	};
+
+	const debouncedSave = pDebounce.promise(save, {after: true});
+
+	// If data changes while saving, it will save again with the latest data
+	debouncedSave('data1');
+	debouncedSave('data2'); // This will run after the first save completes
+	//=> Saved: data1
+	//=> Saved: data2
+	```
+	*/
+	readonly after?: boolean;
+};
+
 declare const pDebounce: {
 	/**
 	[Debounce](https://css-tricks.com/debouncing-throttling-explained-examples/) promise-returning & async functions.
@@ -72,7 +105,8 @@ declare const pDebounce: {
 	```
 	*/
 	promise<This, ArgumentsType extends unknown[], ReturnType>(
-		function_: (this: This, ...arguments: ArgumentsType) => PromiseLike<ReturnType> | ReturnType
+		function_: (this: This, ...arguments: ArgumentsType) => PromiseLike<ReturnType> | ReturnType,
+		options?: PromiseOptions
 	): (this: This, ...arguments: ArgumentsType) => Promise<ReturnType>;
 };
 

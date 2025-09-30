@@ -62,15 +62,9 @@ Type: `AbortSignal`
 
 An [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal) to cancel the debounced function.
 
-### pDebounce.promise(function_)
+### pDebounce.promise(function_, options?)
 
 Execute `function_` unless a previous call is still pending, in which case, return the pending promise. Useful, for example, to avoid processing extra button clicks if the previous one is not complete.
-
-#### function_
-
-Type: `Function`
-
-Promise-returning/async function to debounce.
 
 ```js
 import {setTimeout as delay} from 'timers/promises';
@@ -91,6 +85,46 @@ for (const number of [1, 2, 3]) {
 //=> 1
 //=> 1
 //=> 1
+```
+
+#### function_
+
+Type: `Function`
+
+Promise-returning/async function to debounce.
+
+#### options
+
+Type: `object`
+
+##### after
+
+Type: `boolean`\
+Default: `false`
+
+If a call is made while a previous call is still running, queue the latest arguments and run the function again after the current execution completes.
+
+Use cases:
+- With `after: false` (default): API fetches, data loading, read operations - concurrent calls share the same result.
+- With `after: true`: Saving data, file writes, state updates - ensures latest data is never lost.
+
+```js
+import {setTimeout as delay} from 'timers/promises';
+import pDebounce from 'p-debounce';
+
+const save = async data => {
+	await delay(200);
+	console.log(`Saved: ${data}`);
+	return data;
+};
+
+const debouncedSave = pDebounce.promise(save, {after: true});
+
+// If data changes while saving, it will save again with the latest data
+debouncedSave('data1');
+debouncedSave('data2'); // This will run after the first save completes
+//=> Saved: data1
+//=> Saved: data2
 ```
 
 ## Related

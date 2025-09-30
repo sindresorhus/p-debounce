@@ -1,4 +1,4 @@
-const pDebounce = (function_, wait, options = {}) => {
+const pDebounce = (functionToDebounce, wait, options = {}) => {
 	if (!Number.isFinite(wait)) {
 		throw new TypeError('Expected `wait` to be a finite number');
 	}
@@ -9,7 +9,7 @@ const pDebounce = (function_, wait, options = {}) => {
 
 	const onAbort = () => {
 		clearTimeout(timeout);
-		timeout = null;
+		timeout = undefined;
 
 		try {
 			options.signal?.throwIfAborted();
@@ -37,7 +37,7 @@ const pDebounce = (function_, wait, options = {}) => {
 			clearTimeout(timeout);
 
 			timeout = setTimeout(async () => {
-				timeout = null;
+				timeout = undefined;
 
 				// Capture the current handlers for this execution
 				const currentHandlers = promiseHandlers;
@@ -46,7 +46,7 @@ const pDebounce = (function_, wait, options = {}) => {
 				promiseHandlers = [];
 
 				try {
-					const result = options.before ? leadingValue : await function_.apply(this, arguments_);
+					const result = options.before ? leadingValue : await functionToDebounce.apply(this, arguments_);
 
 					for (const {resolve: resolveFunction} of currentHandlers) {
 						resolveFunction(result);
@@ -68,7 +68,7 @@ const pDebounce = (function_, wait, options = {}) => {
 				// Execute immediately for leading edge
 				(async () => {
 					try {
-						leadingValue = await function_.apply(this, arguments_);
+						leadingValue = await functionToDebounce.apply(this, arguments_);
 						resolve(leadingValue);
 					} catch (error) {
 						reject(error);
@@ -87,16 +87,62 @@ const pDebounce = (function_, wait, options = {}) => {
 	};
 };
 
-pDebounce.promise = function_ => {
+pDebounce.promise = (function_, options = {}) => {
 	let currentPromise;
+	let queuedCall;
 
 	return async function (...arguments_) {
 		if (currentPromise) {
-			return currentPromise;
+			if (!options.after) {
+				return currentPromise;
+			}
+
+			// Queue latest call (replacing any existing queue)
+			queuedCall ??= {resolvers: []};
+			queuedCall.arguments = arguments_;
+			queuedCall.context = this;
+
+			return new Promise((resolve, reject) => {
+				queuedCall.resolvers.push({resolve, reject});
+			});
 		}
 
+		currentPromise = (async () => {
+			let result;
+			let initialError;
+
+			try {
+				result = await function_.apply(this, arguments_);
+			} catch (error) {
+				initialError = error;
+			}
+
+			// Process queued calls regardless of initial result
+			while (queuedCall) {
+				const call = queuedCall;
+				queuedCall = undefined;
+
+				try {
+					// eslint-disable-next-line no-await-in-loop
+					const queuedResult = await function_.apply(call.context, call.arguments);
+					for (const {resolve} of call.resolvers) {
+						resolve(queuedResult);
+					}
+				} catch (error) {
+					for (const {reject} of call.resolvers) {
+						reject(error);
+					}
+				}
+			}
+
+			if (initialError) {
+				throw initialError;
+			}
+
+			return result;
+		})();
+
 		try {
-			currentPromise = function_.apply(this, arguments_);
 			return await currentPromise;
 		} finally {
 			currentPromise = undefined;
