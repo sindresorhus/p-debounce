@@ -131,7 +131,7 @@ debouncedSave('data2'); // This will run after the first save completes
 
 ### Autosave
 
-For autosave, use **trailing** debounce (default) to save only after the user stops typing:
+For autosave, combine trailing debounce with serialization to prevent concurrent saves from racing:
 
 ```js
 import pDebounce from 'p-debounce';
@@ -143,14 +143,17 @@ const saveDocument = async content => {
 	});
 };
 
-const autosave = pDebounce(saveDocument, 1000);
+// Serialize saves, then debounce keystrokes
+const serializedSave = pDebounce.promise(saveDocument, {after: true});
+const autosave = pDebounce(serializedSave, 1000);
 
 textArea.addEventListener('input', () => {
 	autosave(textArea.value);
 });
 
-// Saves 1 second after typing stops.
-// If user types during save, starts new 1s timer after that keystroke.
+// 1. Waits 1s after typing stops
+// 2. If user types during save, queues next save with latest content
+// 3. Prevents race conditions where slow saves overwrite newer data
 ```
 
 ## Related
