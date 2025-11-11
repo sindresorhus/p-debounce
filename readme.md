@@ -127,6 +127,32 @@ debouncedSave('data2'); // This will run after the first save completes
 //=> Saved: data2
 ```
 
+## Recipes
+
+### Autosave
+
+For autosave, use **trailing** debounce (default) to save only after the user stops typing:
+
+```js
+import pDebounce from 'p-debounce';
+
+const saveDocument = async content => {
+	await fetch('/api/save', {
+		method: 'POST',
+		body: JSON.stringify({content}),
+	});
+};
+
+const autosave = pDebounce(saveDocument, 1000);
+
+textArea.addEventListener('input', () => {
+	autosave(textArea.value);
+});
+
+// Saves 1 second after typing stops.
+// If user types during save, starts new 1s timer after that keystroke.
+```
+
 ## Related
 
 - [p-throttle](https://github.com/sindresorhus/p-throttle) - Throttle promise-returning & async functions
