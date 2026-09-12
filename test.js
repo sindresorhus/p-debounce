@@ -1499,7 +1499,7 @@ test('.promise() with after option - error in initial call should still process 
 for (const reason of [undefined, null, false, 0, '', Number.NaN]) {
 	test(`.promise() preserves rejection with ${String(reason)}`, async () => {
 		const debounced = pDebounce.promise(async () => {
-			throw reason; // eslint-disable-line no-throw-literal
+			throw reason;
 		});
 
 		const results = await Promise.allSettled([debounced(), debounced()]);

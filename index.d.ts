@@ -9,7 +9,7 @@ export type Options = {
 	/**
 	An `AbortSignal` to cancel the debounced function.
 	*/
-	readonly signal?: AbortSignal;
+	readonly signal?: AbortSignal | undefined;
 };
 
 export type PromiseOptions = {
