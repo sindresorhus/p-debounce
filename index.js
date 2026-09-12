@@ -110,11 +110,13 @@ pDebounce.promise = (function_, options = {}) => {
 		currentPromise = (async () => {
 			let result;
 			let initialError;
+			let didReject = false;
 
 			try {
 				result = await function_.apply(this, arguments_);
 			} catch (error) {
 				initialError = error;
+				didReject = true;
 			}
 
 			// Process queued calls regardless of initial result
@@ -135,7 +137,7 @@ pDebounce.promise = (function_, options = {}) => {
 				}
 			}
 
-			if (initialError) {
+			if (didReject) {
 				throw initialError;
 			}
 

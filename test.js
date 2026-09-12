@@ -1495,3 +1495,40 @@ test('.promise() with after option - error in initial call should still process 
 	await assert.rejects(promise1, {message: 'Initial error'});
 	assert.equal(await promise2, 'success');
 });
+
+for (const reason of [undefined, null, false, 0, '', Number.NaN]) {
+	test(`.promise() preserves rejection with ${String(reason)}`, async () => {
+		const debounced = pDebounce.promise(async () => {
+			throw reason; // eslint-disable-line no-throw-literal
+		});
+
+		const results = await Promise.allSettled([debounced(), debounced()]);
+		assert.deepEqual(results, [
+			{status: 'rejected', reason},
+			{status: 'rejected', reason},
+		]);
+	});
+}
+
+test('.promise() preserves a falsy initial rejection while processing a queued call', async () => {
+	let release;
+	const gate = new Promise(resolve => {
+		release = resolve;
+	});
+	const debounced = pDebounce.promise(async value => {
+		if (value === 'first') {
+			await gate;
+			throw null; // eslint-disable-line no-throw-literal
+		}
+
+		return value;
+	}, {after: true});
+
+	const resultsPromise = Promise.allSettled([debounced('first'), debounced('queued')]);
+	release();
+	assert.deepEqual(await resultsPromise, [
+		{status: 'rejected', reason: null},
+		{status: 'fulfilled', value: 'queued'},
+	]);
+	assert.equal(await debounced('next'), 'next');
+});
