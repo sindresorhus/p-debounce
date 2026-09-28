@@ -4,6 +4,7 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 	}
 
 	let leadingValue;
+	let leadingCall;
 	let timeout;
 	let promiseHandlers = []; // Single array of {resolve, reject}
 
@@ -39,6 +40,11 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 			timeout = setTimeout(async () => {
 				timeout = undefined;
 
+				if (options.before) {
+					// The leading call can still be pending when the function is slower than `wait`.
+					await leadingCall;
+				}
+
 				// Capture the current handlers for this execution
 				const currentHandlers = promiseHandlers;
 
@@ -65,14 +71,17 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 			}, wait);
 
 			if (shouldCallNow) {
-				// Execute immediately for leading edge
-				(async () => {
+				// Execute immediately for leading edge.
+				// `leadingCall` never rejects, so the trailing callers can always await it.
+				leadingCall = (async () => {
 					try {
 						leadingValue = await functionToDebounce.apply(this, arguments_);
-						resolve(leadingValue);
 					} catch (error) {
 						reject(error);
+						return;
 					}
+
+					resolve(leadingValue);
 				})();
 			} else {
 				// Add to handlers for later resolution

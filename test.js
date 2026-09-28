@@ -958,6 +958,23 @@ test('debounce with AbortSignal.timeout', async () => {
 	await assert.rejects(promise, error => error.name === 'TimeoutError' || error.name === 'AbortError');
 });
 
+test('before option - fn takes longer than wait', async () => {
+	let count = 0;
+
+	const debounced = pDebounce(async value => {
+		count++;
+		await delay(200);
+		return value;
+	}, 50, {before: true});
+
+	const results = await Promise.all([1, 2, 3].map(value => debounced(value)));
+
+	// The trailing callers still resolve with the leading call's result, even though the
+	// leading call is still running when the debounce timeout expires.
+	assert.deepEqual(results, [1, 1, 1]);
+	assert.equal(count, 1);
+});
+
 test('before option with async error in leading call', async () => {
 	const error = new Error('Async leading error');
 	const debounced = pDebounce(async () => {

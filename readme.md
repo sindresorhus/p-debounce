@@ -56,6 +56,11 @@ Default: `false`
 
 Call the `fn` on the [leading edge of the timeout](https://css-tricks.com/debouncing-throttling-explained-examples/#article-header-id-1). Meaning immediately, instead of waiting for `wait` milliseconds.
 
+The other calls in the same window resolve with the result of the leading call, so they settle only when the leading call settles.
+
+> [!NOTE]
+> `fn` must not wait for the promise of a call it makes to its own debounced function. That call waits for the leading call, so it never settles.
+
 ##### signal
 
 Type: `AbortSignal`
