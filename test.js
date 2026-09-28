@@ -26,7 +26,8 @@ test('multiple calls', async () => {
 
 	assert.deepEqual(results, [5, 5, 5, 5, 5]);
 	assert.equal(count, 1);
-	assert.ok(elapsed >= 130 && elapsed <= 170);
+	assert.ok(elapsed >= 130, `Expected at least 130ms, got ${elapsed}ms`);
+	assert.ok(elapsed <= 170, `Expected at most 170ms, got ${elapsed}ms`);
 
 	await delay(200);
 	assert.equal(await debounced(6), 6);
@@ -155,7 +156,6 @@ test('`this` is preserved in pDebounce() fn', async () => {
 	const thisFixture = new FixtureClass();
 
 	assert.equal(await thisFixture.getThis(), thisFixture);
-	assert.doesNotThrow(async () => thisFixture.foo());
 	assert.equal(await thisFixture.foo(), fixture);
 });
 
@@ -167,7 +167,6 @@ test('`this` is preserved in pDebounce.promise() fn', async () => {
 	const thisFixture = new FixtureClass();
 
 	assert.equal(await thisFixture.getThis(), thisFixture);
-	assert.doesNotThrow(async () => thisFixture.foo());
 	assert.equal(await thisFixture.foo(), fixture);
 });
 
@@ -275,7 +274,7 @@ test('function still works after AbortSignal cancellation', async () => {
 	// Cancel initial call
 	const promise1 = debounced(1);
 	controller1.abort();
-	await assert.rejects(promise1);
+	await assert.rejects(promise1, {name: 'AbortError'});
 
 	// Should work normally with new signal after cancellation
 	const controller2 = new AbortController();
@@ -325,7 +324,7 @@ test('multiple abort signals are handled correctly without leaks', async () => {
 	await Promise.all(promises);
 
 	// If this test completes without memory issues, listeners are being cleaned up
-	assert.ok(true);
+	assert.equal(promises.length, 5);
 });
 
 test('before option - all calls in window resolve to same leading value', async () => {
@@ -376,9 +375,10 @@ test('abort rejects all pending callers with consistent AbortError', async () =>
 
 	// All errors should be AbortError
 	assert.equal(errors.length, 3);
-	for (const error of errors) {
-		assert.equal(error.name, 'AbortError');
-	}
+
+	const errorNames = errors.map(({name}) => name);
+
+	assert.deepEqual(errorNames, ['AbortError', 'AbortError', 'AbortError']);
 });
 
 test('this context is preserved in non-before mode', async () => {
@@ -448,10 +448,16 @@ test('multiple callers all receive the same rejection', async () => {
 
 	// All should be rejected with the same error
 	assert.equal(results.length, 3);
+
+	const statuses = [];
+	const messages = [];
 	for (const result of results) {
-		assert.equal(result.status, 'rejected');
-		assert.equal(result.reason.message, errorMessage);
+		statuses.push(result.status);
+		messages.push(result.reason.message);
 	}
+
+	assert.deepEqual(statuses, ['rejected', 'rejected', 'rejected']);
+	assert.deepEqual(messages, [errorMessage, errorMessage, errorMessage]);
 });
 
 test('handles undefined and null arguments', async () => {
@@ -479,12 +485,11 @@ test('rapid abort signals do not cause memory leaks', async () => {
 
 		const promise = debounced(index);
 		controller.abort();
-		// eslint-disable-next-line promise/prefer-await-to-then
 		promises.push(promise.catch(() => {})); // Ignore rejections
 	}
 
 	await Promise.all(promises);
-	assert.ok(true, 'Rapid aborts handled without issues');
+	assert.equal(promises.length, 100);
 });
 
 test('before option with immediate abort', async () => {
@@ -549,10 +554,15 @@ test('error handling - documents behavior for issue #7', async () => {
 	assert.equal(callCount, 1);
 
 	// Verify all calls were rejected with the same error
+	const statuses = [];
+	const messages = [];
 	for (const result of results) {
-		assert.equal(result.status, 'rejected');
-		assert.equal(result.reason.message, errorMessage);
+		statuses.push(result.status);
+		messages.push(result.reason.message);
 	}
+
+	assert.deepEqual(statuses, ['rejected', 'rejected', 'rejected']);
+	assert.deepEqual(messages, [errorMessage, errorMessage, errorMessage]);
 });
 
 test('calls made during function execution resolve with correct values', async () => {
@@ -703,10 +713,15 @@ test('error propagation to all waiting promises', async () => {
 	const results = await Promise.allSettled(promises);
 
 	// All should be rejected with the same error
+	const statuses = [];
+	const reasons = [];
 	for (const result of results) {
-		assert.equal(result.status, 'rejected');
-		assert.equal(result.reason, error);
+		statuses.push(result.status);
+		reasons.push(result.reason);
 	}
+
+	assert.deepEqual(statuses, Array.from({length: 10}, () => 'rejected'));
+	assert.deepEqual(reasons, Array.from({length: 10}, () => error));
 
 	// Subsequent calls should work
 	shouldThrow = false;
@@ -714,16 +729,16 @@ test('error propagation to all waiting promises', async () => {
 	assert.equal(result, 42);
 });
 
-test('wait parameter validation', async () => {
-	assert.throws(() => pDebounce(() => {}, Number.NaN), TypeError);
-	assert.throws(() => pDebounce(() => {}, Number.POSITIVE_INFINITY), TypeError);
-	assert.throws(() => pDebounce(() => {}, Number.NEGATIVE_INFINITY), TypeError);
+test('wait parameter validation', () => {
+	assert.throws(() => pDebounce(() => {}, NaN), TypeError);
+	assert.throws(() => pDebounce(() => {}, Infinity), TypeError);
+	assert.throws(() => pDebounce(() => {}, -Infinity), TypeError);
 	assert.throws(() => pDebounce(() => {}, 'not a number'), TypeError);
 
 	// These should work
-	assert.doesNotThrow(() => pDebounce(() => {}, 0));
-	assert.doesNotThrow(() => pDebounce(() => {}, -100)); // Negative waits work like 0
-	assert.doesNotThrow(() => pDebounce(() => {}, 1.5)); // Decimals are fine
+	pDebounce(() => {}, 0);
+	pDebounce(() => {}, -100); // Negative waits work like 0
+	pDebounce(() => {}, 1.5); // Decimals are fine
 });
 
 test('before option with errors in leading call', async () => {
@@ -894,7 +909,6 @@ test('edge case: call during abort signal cleanup', async () => {
 	controller.abort();
 
 	// Make new call immediately - should be rejected because signal is aborted
-	// eslint-disable-next-line promise/prefer-await-to-then
 	const p2 = debounced(2).catch(() => {}); // Handle the rejection
 
 	// First call should complete despite abort happening during execution
@@ -1041,14 +1055,12 @@ test('debounce preserves promise rejection details', async () => {
 		throw customError;
 	}, 50);
 
-	try {
-		await debounced();
-		assert.fail('Should have thrown');
-	} catch (error) {
+	await assert.rejects(debounced(), error => {
 		assert.equal(error, customError);
 		assert.equal(error.code, 'CUSTOM_CODE');
 		assert.deepEqual(error.details, {foo: 'bar'});
-	}
+		return true;
+	});
 });
 
 test('simultaneous before and non-before debounced functions', async () => {
@@ -1237,10 +1249,10 @@ test('abort signal during various execution phases', async () => {
 	const controller2 = new AbortController();
 	const controller3 = new AbortController();
 
-	let executionStarted = false;
+	let didStart = false;
 
 	const fn = async value => {
-		executionStarted = true;
+		didStart = true;
 		await delay(100);
 		return value;
 	};
@@ -1258,11 +1270,11 @@ test('abort signal during various execution phases', async () => {
 	await assert.rejects(p2, {name: 'AbortError'});
 
 	// Test 3: Abort during function execution (should complete)
-	executionStarted = false;
+	didStart = false;
 	const debounced3 = pDebounce(fn, 50, {signal: controller3.signal});
 	const p3 = debounced3(3);
 	await delay(60); // Wait for function to start
-	assert.ok(executionStarted, 'Function should have started');
+	assert.ok(didStart, 'Function should have started');
 	controller3.abort();
 	const result3 = await p3; // Should complete despite abort
 	assert.equal(result3, 3);
@@ -1281,7 +1293,6 @@ test('memory cleanup after abort', async () => {
 	const promises = [];
 	for (let index = 0; index < 5; index++) {
 		const promise = debounced(index);
-		// eslint-disable-next-line promise/prefer-await-to-then
 		promises.push(promise.catch(() => {})); // Ignore rejections
 	}
 
@@ -1513,7 +1524,7 @@ test('.promise() with after option - error in initial call should still process 
 	assert.equal(await promise2, 'success');
 });
 
-for (const reason of [undefined, null, false, 0, '', Number.NaN]) {
+for (const reason of [undefined, null, false, 0, '', NaN]) {
 	test(`.promise() preserves rejection with ${String(reason)}`, async () => {
 		const debounced = pDebounce.promise(async () => {
 			throw reason;
@@ -1528,10 +1539,7 @@ for (const reason of [undefined, null, false, 0, '', Number.NaN]) {
 }
 
 test('.promise() preserves a falsy initial rejection while processing a queued call', async () => {
-	let release;
-	const gate = new Promise(resolve => {
-		release = resolve;
-	});
+	const {promise: gate, resolve: release} = Promise.withResolvers();
 	const debounced = pDebounce.promise(async value => {
 		if (value === 'first') {
 			await gate;
