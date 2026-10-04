@@ -989,6 +989,27 @@ test('before option - fn takes longer than wait', async () => {
 	assert.equal(count, 1);
 });
 
+test('before option - a new window that starts while the previous leading call is pending resolves with its own leading value', async () => {
+	const {promise: gate, resolve: release} = Promise.withResolvers();
+	const debounced = pDebounce(async value => {
+		if (value === 1) {
+			await gate;
+		}
+
+		return value;
+	}, 20, {before: true});
+
+	const firstWindow = [debounced(1), debounced(2)];
+
+	// The first timeout has expired and waits for the pending leading call.
+	await delay(40);
+
+	const secondWindow = [debounced(3), debounced(4)];
+	release();
+
+	assert.deepEqual(await Promise.all([...firstWindow, ...secondWindow]), [1, 1, 3, 3]);
+});
+
 test('before option with async error in leading call', async () => {
 	const error = new Error('Async leading error');
 	const debounced = pDebounce(async () => {

@@ -3,7 +3,6 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 		throw new TypeError('Expected `wait` to be a finite number');
 	}
 
-	let leadingValue;
 	let leadingCall;
 	let timeout;
 	let promiseHandlers = []; // Single array of {resolve, reject}
@@ -40,11 +39,6 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 			timeout = setTimeout(async () => {
 				timeout = undefined;
 
-				if (options.before) {
-					// The leading call can still be pending when the function is slower than `wait`.
-					await leadingCall;
-				}
-
 				// Capture the current handlers for this execution
 				const currentHandlers = promiseHandlers;
 
@@ -54,8 +48,13 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 				// Remove abort listener
 				options.signal?.removeEventListener('abort', onAbort);
 
+				// Capture this window's leading call before a new window can replace it, and clear it so its value is not retained
+				const currentLeadingCall = leadingCall;
+				leadingCall = undefined;
+
 				try {
-					const result = options.before ? leadingValue : await functionToDebounce.apply(this, arguments_);
+					// The leading call can still be pending when the function is slower than `wait`.
+					const result = options.before ? await currentLeadingCall : await functionToDebounce.apply(this, arguments_);
 
 					for (const {resolve: resolveFunction} of currentHandlers) {
 						resolveFunction(result);
@@ -65,15 +64,14 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 						rejectFunction(error);
 					}
 				}
-
-				// Clear leading value for next cycle
-				leadingValue = undefined;
 			}, wait);
 
 			if (shouldCallNow) {
 				// Execute immediately for leading edge.
-				// `leadingCall` never rejects, so the trailing callers can always await it.
+				// `leadingCall` resolves with the leading value (or `undefined` if the call fails) and never rejects, so the trailing callers can always await it.
 				leadingCall = (async () => {
+					let leadingValue;
+
 					try {
 						leadingValue = await functionToDebounce.apply(this, arguments_);
 					} catch (error) {
@@ -82,6 +80,7 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 					}
 
 					resolve(leadingValue);
+					return leadingValue;
 				})();
 			} else {
 				// Add to handlers for later resolution
