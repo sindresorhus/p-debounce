@@ -19,24 +19,18 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 		// The cleared timeout would otherwise have released it
 		leadingCall = undefined;
 
-		try {
-			options.signal?.throwIfAborted();
-		} catch (error) {
-			for (const {reject} of promiseHandlers) {
-				reject(error);
-			}
-
-			promiseHandlers = [];
+		for (const {reject} of promiseHandlers) {
+			reject(options.signal.reason);
 		}
+
+		promiseHandlers = [];
 	};
 
 	return function (...arguments_) {
 		return new Promise((resolve, reject) => {
 			// Check if already aborted
-			try {
-				options.signal?.throwIfAborted();
-			} catch (error) {
-				reject(error);
+			if (options.signal?.aborted) {
+				reject(options.signal.reason);
 				return;
 			}
 
