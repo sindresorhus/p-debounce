@@ -78,10 +78,10 @@ declare const pDebounce: {
 	```
 	*/
 	<This, ArgumentsType extends unknown[], ReturnType>(
-		fn: (this: This, ...arguments: ArgumentsType) => PromiseLike<ReturnType> | ReturnType,
+		fn: (this: This, ...arguments: ArgumentsType) => ReturnType,
 		wait: number,
 		options?: Options
-	): (this: This, ...arguments: ArgumentsType) => Promise<ReturnType>;
+	): (this: This, ...arguments: ArgumentsType) => Promise<Awaited<ReturnType>>;
 
 	/**
 	Execute `function_` unless a previous call is still pending, in which case, return the pending promise. Useful, for example, to avoid processing extra button clicks if the previous one is not complete.
@@ -113,9 +113,9 @@ declare const pDebounce: {
 	```
 	*/
 	promise<This, ArgumentsType extends unknown[], ReturnType>(
-		function_: (this: This, ...arguments: ArgumentsType) => PromiseLike<ReturnType> | ReturnType,
+		function_: (this: This, ...arguments: ArgumentsType) => ReturnType,
 		options?: PromiseOptions
-	): (this: This, ...arguments: ArgumentsType) => Promise<ReturnType>;
+	): (this: This, ...arguments: ArgumentsType) => Promise<Awaited<ReturnType>>;
 };
 
 export default pDebounce;
