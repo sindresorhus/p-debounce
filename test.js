@@ -1816,10 +1816,19 @@ test('wait greater than the maximum timer delay throws instead of firing immedia
 	pDebounce(() => {}, 2_147_483_647);
 });
 
-test('before option does not retain the leading value after an abort', async () => {
+const collectGarbage = async () => {
 	v8.setFlagsFromString('--expose-gc');
 	const gc = vm.runInNewContext('gc');
 
+	// Do not call `deref()` on a `WeakRef` before this, as it keeps the target alive until the current job ends
+	for (let index = 0; index < 5; index++) {
+		gc();
+		// eslint-disable-next-line no-await-in-loop
+		await delay(10);
+	}
+};
+
+test('before option does not retain the leading value after an abort', async () => {
 	const controller = new AbortController();
 	let reference;
 	const debounced = pDebounce(async () => {
@@ -1833,12 +1842,128 @@ test('before option does not retain the leading value after an abort', async () 
 	controller.abort();
 	await assert.rejects(trailingPromise, {name: 'AbortError'});
 
-	// Do not call `deref()` before collecting, as it keeps the target alive until the current job ends
-	for (let index = 0; index < 5; index++) {
-		gc();
-		// eslint-disable-next-line no-await-in-loop
-		await delay(10);
-	}
+	await collectGarbage();
+	assert.equal(reference.deref(), undefined);
+});
 
+for (const reason of ['custom reason', 0, false, null]) {
+	test(`abort rejects pending and later calls with the abort reason ${String(reason)}`, async () => {
+		const controller = new AbortController();
+		const debounced = pDebounce(async value => value, 20, {signal: controller.signal});
+
+		const pendingPromise = debounced(1);
+		controller.abort(reason);
+
+		await assert.rejects(pendingPromise, error => error === reason);
+		await assert.rejects(debounced(2), error => error === reason);
+	});
+}
+
+test('.promise() with after option runs the queued call with the latest caller `this`', async () => {
+	const gated = createGatedFunction();
+	const contexts = [];
+	const debounced = pDebounce.promise(function (value) {
+		contexts.push(this);
+		return gated.function_(value);
+	}, {after: true});
+
+	const first = {name: 'first'};
+	const second = {name: 'second'};
+	const third = {name: 'third'};
+
+	const firstPromise = debounced.call(first, 'first');
+	const secondPromise = debounced.call(second, 'second');
+	const thirdPromise = debounced.call(third, 'third');
+
+	gated.release('first');
+	gated.release('third');
+	assert.deepEqual(await Promise.all([firstPromise, secondPromise, thirdPromise]), ['first', 'third', 'third']);
+	assert.deepEqual(contexts, [first, third]);
+});
+
+test('.promise() with after option works with a synchronous function', async () => {
+	const calls = [];
+	const debounced = pDebounce.promise(value => {
+		calls.push(value);
+		return value;
+	}, {after: true});
+
+	const results = await Promise.all([debounced(1), debounced(2), debounced(3)]);
+	assert.deepEqual(results, [1, 3, 3]);
+	assert.deepEqual(calls, [1, 3]);
+	assert.equal(await debounced(4), 4);
+});
+
+test('.promise() with after option is not busy after a queued call fails', async () => {
+	const gated = createGatedFunction();
+	const debounced = pDebounce.promise(gated.function_, {after: true});
+	const error = new Error('queued failed');
+
+	const firstPromise = debounced('first');
+	const queuedPromise = debounced('queued');
+	gated.release('first');
+	gated.fail('queued', error);
+
+	assert.equal(await firstPromise, 'first');
+	await assert.rejects(queuedPromise, error);
+
+	const nextPromise = debounced('next');
+	assert.deepEqual(gated.calls, ['first', 'queued', 'next']);
+	gated.release('next');
+	assert.equal(await nextPromise, 'next');
+});
+
+test('.promise() is not busy after a synchronous throw', async () => {
+	const error = new Error('sync');
+	const debounced = pDebounce.promise(value => {
+		if (value === 'throw') {
+			throw error;
+		}
+
+		return value;
+	});
+
+	await assert.rejects(debounced('throw'), error);
+	assert.equal(await debounced('next'), 'next');
+});
+
+test('autosave recipe never overlaps saves and saves the latest content', async () => {
+	const saved = [];
+	let running = 0;
+	let maxRunning = 0;
+	const saveDocument = async content => {
+		running++;
+		maxRunning = Math.max(maxRunning, running);
+		await delay(30);
+		saved.push(content);
+		running--;
+	};
+
+	const serializedSave = pDebounce.promise(saveDocument, {after: true});
+	const autosave = pDebounce(serializedSave, 10);
+
+	const promises = [autosave('a'), autosave('ab')];
+	await delay(20);
+
+	// Typing again while the first save runs
+	promises.push(autosave('abc'), autosave('abcd'));
+	await Promise.all(promises);
+
+	assert.deepEqual(saved, ['ab', 'abcd']);
+	assert.equal(maxRunning, 1);
+});
+
+test('before option does not retain the leading value after the window ends', async () => {
+	let reference;
+	const debounced = pDebounce(async () => {
+		const value = {};
+		reference = new WeakRef(value);
+		return value;
+	}, 10, {before: true});
+
+	await Promise.all([debounced(), debounced()]);
+	await delay(20);
+
+	await collectGarbage();
 	assert.equal(reference.deref(), undefined);
 });
