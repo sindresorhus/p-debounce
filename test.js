@@ -1679,3 +1679,128 @@ test('.promise() does not start a concurrent execution when a synchronously thro
 	assert.deepEqual(calls, ['outer']);
 	assert.equal(await debounced('next'), 'next');
 });
+
+const createGatedFunction = () => {
+	const gates = new Map();
+	const calls = [];
+	let running = 0;
+	let maxRunning = 0;
+
+	const gate = value => {
+		if (!gates.has(value)) {
+			gates.set(value, Promise.withResolvers());
+		}
+
+		return gates.get(value);
+	};
+
+	const function_ = async value => {
+		running++;
+		maxRunning = Math.max(maxRunning, running);
+		calls.push(value);
+
+		try {
+			return await gate(value).promise;
+		} finally {
+			running--;
+		}
+	};
+
+	return {
+		function_,
+		calls,
+		get maxRunning() {
+			return maxRunning;
+		},
+		release(value, result = value) {
+			gate(value).resolve(result);
+		},
+		fail(value, error) {
+			gate(value).reject(error);
+		},
+	};
+};
+
+const isPending = async promise => {
+	const pending = Symbol('pending');
+	return await Promise.race([promise, delay(0, pending)]).catch(() => undefined) === pending;
+};
+
+test('.promise() with after option resolves the first caller when its own call finishes, without waiting for the queue', async () => {
+	const gated = createGatedFunction();
+	const debounced = pDebounce.promise(gated.function_, {after: true});
+
+	const firstPromise = debounced('first');
+	const queuedPromise = debounced('queued');
+
+	gated.release('first');
+	assert.equal(await firstPromise, 'first');
+	assert.ok(await isPending(queuedPromise));
+	assert.deepEqual(gated.calls, ['first', 'queued']);
+
+	gated.release('queued');
+	assert.equal(await queuedPromise, 'queued');
+});
+
+test('.promise() with after option rejects the first caller when its own call fails, without waiting for the queue', async () => {
+	const gated = createGatedFunction();
+	const debounced = pDebounce.promise(gated.function_, {after: true});
+	const error = new Error('first failed');
+
+	const firstPromise = debounced('first');
+	const queuedPromise = debounced('queued');
+
+	gated.fail('first', error);
+	await assert.rejects(firstPromise, error);
+	assert.ok(await isPending(queuedPromise));
+
+	gated.release('queued');
+	assert.equal(await queuedPromise, 'queued');
+});
+
+test('.promise() with after option resolves each queued call when it finishes, while later queued calls still run', async () => {
+	const gated = createGatedFunction();
+	const debounced = pDebounce.promise(gated.function_, {after: true});
+
+	const firstPromise = debounced('first');
+	const secondPromise = debounced('second');
+	gated.release('first');
+	assert.equal(await firstPromise, 'first');
+
+	const thirdPromise = debounced('third');
+	gated.release('second');
+	assert.equal(await secondPromise, 'second');
+	assert.ok(await isPending(thirdPromise));
+
+	gated.release('third');
+	assert.equal(await thirdPromise, 'third');
+	assert.deepEqual(gated.calls, ['first', 'second', 'third']);
+	assert.equal(gated.maxRunning, 1);
+});
+
+test('.promise() with after option queues a call that the first caller makes right after it resolves, while the queue still runs', async () => {
+	const gated = createGatedFunction();
+	const debounced = pDebounce.promise(gated.function_, {after: true});
+
+	const firstPromise = debounced('first');
+	const queuedPromise = debounced('queued');
+	gated.release('first');
+	await firstPromise;
+
+	const againPromise = debounced('again');
+	assert.deepEqual(gated.calls, ['first', 'queued']);
+	assert.equal(gated.maxRunning, 1);
+
+	gated.release('queued');
+	assert.equal(await queuedPromise, 'queued');
+	gated.release('again');
+	assert.equal(await againPromise, 'again');
+	assert.deepEqual(gated.calls, ['first', 'queued', 'again']);
+	assert.equal(gated.maxRunning, 1);
+
+	// After the queue is empty, a new call runs immediately
+	const freshPromise = debounced('fresh');
+	assert.deepEqual(gated.calls, ['first', 'queued', 'again', 'fresh']);
+	gated.release('fresh');
+	assert.equal(await freshPromise, 'fresh');
+});

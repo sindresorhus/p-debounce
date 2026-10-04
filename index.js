@@ -99,69 +99,44 @@ pDebounce.promise = (function_, options = {}) => {
 	let currentPromise;
 	let queuedCall;
 
-	return async function (...arguments_) {
-		if (currentPromise) {
-			if (!options.after) {
-				return currentPromise;
-			}
-
-			// Queue latest call (replacing any existing queue)
-			queuedCall ??= {resolvers: []};
-			queuedCall.arguments = arguments_;
-			queuedCall.context = this;
-
-			return new Promise((resolve, reject) => {
-				queuedCall.resolvers.push({resolve, reject});
-			});
-		}
-
-		const {promise, resolve: resolvePromise} = Promise.withResolvers();
+	const run = (context, arguments_) => {
+		const {promise, resolve} = Promise.withResolvers();
 
 		// Mark as busy before calling `function_`, so a synchronous re-entrant call does not start a concurrent execution.
 		currentPromise = promise;
 
-		resolvePromise((async () => {
-			let result;
-			let initialError;
-			let didReject = false;
-
+		resolve((async () => {
 			try {
-				result = await function_.apply(this, arguments_);
-			} catch (error) {
-				initialError = error;
-				didReject = true;
-			}
-
-			// Process queued calls regardless of initial result
-			while (queuedCall) {
-				const call = queuedCall;
-				queuedCall = undefined;
-
-				try {
-					// eslint-disable-next-line no-await-in-loop
-					const queuedResult = await function_.apply(call.context, call.arguments);
-					for (const {resolve} of call.resolvers) {
-						resolve(queuedResult);
-					}
-				} catch (error) {
-					for (const {reject} of call.resolvers) {
-						reject(error);
-					}
+				return await function_.apply(context, arguments_);
+			} finally {
+				// Stay busy while the queued call runs, so calls never overlap, but settle this call's callers right away instead of after the whole queue.
+				if (queuedCall) {
+					const call = queuedCall;
+					queuedCall = undefined;
+					call.resolve(run(call.context, call.arguments));
+				} else {
+					currentPromise = undefined;
 				}
 			}
-
-			if (didReject) {
-				throw initialError;
-			}
-
-			return result;
 		})());
 
-		try {
-			return await currentPromise;
-		} finally {
-			currentPromise = undefined;
+		return promise;
+	};
+
+	return function (...arguments_) {
+		if (!currentPromise) {
+			return run(this, arguments_);
 		}
+
+		if (!options.after) {
+			return currentPromise;
+		}
+
+		// Queue the latest call (replacing the arguments of any queued call). All queued callers share its result.
+		queuedCall ??= Promise.withResolvers();
+		queuedCall.arguments = arguments_;
+		queuedCall.context = this;
+		return queuedCall.promise;
 	};
 };
 

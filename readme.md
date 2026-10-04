@@ -112,6 +112,8 @@ Default: `false`
 
 If a call is made while a previous call is still running, queue the latest arguments and run the function again after the current execution completes.
 
+Each caller settles as soon as the execution it is waiting for completes. Calls queued during the same execution share the result of the latest one.
+
 Use cases:
 - With `after: false` (default): API fetches, data loading, read operations - concurrent calls share the same result.
 - With `after: true`: Saving data, file writes, state updates - ensures latest data is never lost.
