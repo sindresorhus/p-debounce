@@ -1804,3 +1804,12 @@ test('.promise() with after option queues a call that the first caller makes rig
 	gated.release('fresh');
 	assert.equal(await freshPromise, 'fresh');
 });
+
+test('wait greater than the maximum timer delay throws instead of firing immediately', () => {
+	// Node.js clamps a larger delay to 1ms
+	assert.throws(() => pDebounce(() => {}, 2_147_483_648), RangeError);
+	assert.throws(() => pDebounce(() => {}, Number.MAX_SAFE_INTEGER), RangeError);
+
+	// The maximum itself is allowed
+	pDebounce(() => {}, 2_147_483_647);
+});

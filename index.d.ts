@@ -56,7 +56,7 @@ declare const pDebounce: {
 	[Debounce](https://css-tricks.com/debouncing-throttling-explained-examples/) promise-returning & async functions.
 
 	@param fn - Promise-returning/async function to debounce.
-	@param wait - Milliseconds to wait before calling `fn`.
+	@param wait - Milliseconds to wait before calling `fn`. Must be at most `2147483647` (about 24.8 days).
 	@returns A function that delays calling `fn` until after `wait` milliseconds have elapsed since the last time it was called.
 
 	@example

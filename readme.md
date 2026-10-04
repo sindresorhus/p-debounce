@@ -43,7 +43,7 @@ Promise-returning/async function to debounce.
 
 Type: `number`
 
-Milliseconds to wait before calling `fn`.
+Milliseconds to wait before calling `fn`. Must be at most `2147483647` (about 24.8 days).
 
 #### options
 

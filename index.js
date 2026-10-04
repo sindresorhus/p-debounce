@@ -3,6 +3,11 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 		throw new TypeError('Expected `wait` to be a finite number');
 	}
 
+	// `setTimeout` treats a larger delay as 1ms
+	if (wait > 2_147_483_647) {
+		throw new RangeError('Expected `wait` to be at most 2147483647 milliseconds');
+	}
+
 	let leadingCall;
 	let timeout;
 	let promiseHandlers = []; // Single array of {resolve, reject}
