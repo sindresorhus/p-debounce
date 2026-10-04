@@ -84,6 +84,8 @@ declare const pDebounce: {
 	/**
 	Execute `function_` unless a previous call is still pending, in which case, return the pending promise. Useful, for example, to avoid processing extra button clicks if the previous one is not complete.
 
+	Note: `function_` must not wait for the promise of a call it makes to its own debounced function. That call returns the pending promise (or is queued behind the running call with `after: true`), so it never settles.
+
 	@param function_ - Promise-returning/async function to debounce.
 
 	@example

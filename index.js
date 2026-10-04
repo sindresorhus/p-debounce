@@ -115,7 +115,12 @@ pDebounce.promise = (function_, options = {}) => {
 			});
 		}
 
-		currentPromise = (async () => {
+		const {promise, resolve: resolvePromise} = Promise.withResolvers();
+
+		// Mark as busy before calling `function_`, so a synchronous re-entrant call does not start a concurrent execution.
+		currentPromise = promise;
+
+		resolvePromise((async () => {
 			let result;
 			let initialError;
 			let didReject = false;
@@ -150,7 +155,7 @@ pDebounce.promise = (function_, options = {}) => {
 			}
 
 			return result;
-		})();
+		})());
 
 		try {
 			return await currentPromise;

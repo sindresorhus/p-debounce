@@ -71,6 +71,9 @@ An [`AbortSignal`](https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal)
 
 Execute `function_` unless a previous call is still pending, in which case, return the pending promise. Useful, for example, to avoid processing extra button clicks if the previous one is not complete.
 
+> [!NOTE]
+> `function_` must not wait for the promise of a call it makes to its own debounced function. That call returns the pending promise (or is queued behind the running call with `after: true`), so it never settles.
+
 ```js
 import {setTimeout as delay} from 'timers/promises';
 import pDebounce from 'p-debounce';
