@@ -16,6 +16,9 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 		clearTimeout(timeout);
 		timeout = undefined;
 
+		// The cleared timeout would otherwise have released it
+		leadingCall = undefined;
+
 		try {
 			options.signal?.throwIfAborted();
 		} catch (error) {

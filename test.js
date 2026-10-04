@@ -1,6 +1,8 @@
 import {test} from 'node:test';
 import {strict as assert} from 'node:assert';
 import {setTimeout as delay} from 'node:timers/promises';
+import v8 from 'node:v8';
+import vm from 'node:vm';
 import pDebounce from './index.js';
 
 const fixture = Symbol('fixture');
@@ -1812,4 +1814,31 @@ test('wait greater than the maximum timer delay throws instead of firing immedia
 
 	// The maximum itself is allowed
 	pDebounce(() => {}, 2_147_483_647);
+});
+
+test('before option does not retain the leading value after an abort', async () => {
+	v8.setFlagsFromString('--expose-gc');
+	const gc = vm.runInNewContext('gc');
+
+	const controller = new AbortController();
+	let reference;
+	const debounced = pDebounce(async () => {
+		const value = {};
+		reference = new WeakRef(value);
+		return value;
+	}, 20, {before: true, signal: controller.signal});
+
+	await debounced();
+	const trailingPromise = debounced();
+	controller.abort();
+	await assert.rejects(trailingPromise, {name: 'AbortError'});
+
+	// Do not call `deref()` before collecting, as it keeps the target alive until the current job ends
+	for (let index = 0; index < 5; index++) {
+		gc();
+		// eslint-disable-next-line no-await-in-loop
+		await delay(10);
+	}
+
+	assert.equal(reference.deref(), undefined);
 });
