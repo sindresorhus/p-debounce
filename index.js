@@ -51,6 +51,9 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 				// Clear handlers for next cycle (new calls during execution will add to new list)
 				promiseHandlers = [];
 
+				// Remove abort listener
+				options.signal?.removeEventListener('abort', onAbort);
+
 				try {
 					const result = options.before ? leadingValue : await functionToDebounce.apply(this, arguments_);
 
@@ -65,9 +68,6 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 
 				// Clear leading value for next cycle
 				leadingValue = undefined;
-
-				// Remove abort listener
-				options.signal?.removeEventListener('abort', onAbort);
 			}, wait);
 
 			if (shouldCallNow) {

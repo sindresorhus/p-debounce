@@ -1557,3 +1557,30 @@ test('.promise() preserves a falsy initial rejection while processing a queued c
 	]);
 	assert.equal(await debounced('next'), 'next');
 });
+
+test('a later batch stays abortable when an earlier invocation finishes', async () => {
+	const controller = new AbortController();
+	const {promise: gate, resolve: release} = Promise.withResolvers();
+	const calls = [];
+	const debounced = pDebounce(async value => {
+		calls.push(value);
+		if (value === 'first') {
+			await gate;
+		}
+
+		return value;
+	}, 20, {signal: controller.signal});
+
+	const firstPromise = debounced('first');
+	await delay(40);
+	assert.deepEqual(calls, ['first']);
+
+	const secondPromise = debounced('second');
+	release();
+	assert.equal(await firstPromise, 'first');
+
+	controller.abort();
+	await assert.rejects(secondPromise, {name: 'AbortError'});
+	await delay(40);
+	assert.deepEqual(calls, ['first']);
+});
