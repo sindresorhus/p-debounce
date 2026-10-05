@@ -1967,3 +1967,23 @@ test('before option does not retain the leading value after the window ends', as
 	await collectGarbage();
 	assert.equal(reference.deref(), undefined);
 });
+
+test('before option does not retain the leading value when the leading call aborts after a synchronous re-entrant call', async () => {
+	const controller = new AbortController();
+	let reference;
+	let trailingPromise;
+	const debounced = pDebounce(() => {
+		const value = {};
+		reference = new WeakRef(value);
+		trailingPromise = debounced();
+		// Use a plain reason, as on Node.js 22 and 24 the stack trace of the default `AbortError` keeps the frames of this call, and so the leading value, alive
+		controller.abort('reason');
+		return value;
+	}, 20, {before: true, signal: controller.signal});
+
+	await debounced();
+	await assert.rejects(trailingPromise, error => error === 'reason');
+
+	await collectGarbage();
+	assert.equal(reference.deref(), undefined);
+});

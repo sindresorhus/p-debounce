@@ -71,7 +71,12 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 			if (shouldCallNow) {
 				// Execute immediately for leading edge.
 				// `leadingCall` resolves with the leading value (or `undefined` if the call fails) and never rejects, so the trailing callers can always await it.
-				leadingCall = (async () => {
+				const {promise, resolve: resolveLeadingCall} = Promise.withResolvers();
+
+				// Assign before calling the function, so an abort during a synchronous call can still release it
+				leadingCall = promise;
+
+				resolveLeadingCall((async () => {
 					let leadingValue;
 
 					try {
@@ -83,7 +88,7 @@ const pDebounce = (functionToDebounce, wait, options = {}) => {
 
 					resolve(leadingValue);
 					return leadingValue;
-				})();
+				})());
 			} else {
 				// Add to handlers for later resolution
 				promiseHandlers.push({resolve, reject});
