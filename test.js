@@ -1913,6 +1913,24 @@ test('.promise() with after option is not busy after a queued call fails', async
 	assert.equal(await nextPromise, 'next');
 });
 
+test('.promise() shares a synchronous rejection between immediate callers', async () => {
+	let callCount = 0;
+	const debounced = pDebounce.promise(() => {
+		callCount++;
+		throw new Error(`failure ${callCount}`);
+	});
+
+	const firstPromise = debounced();
+	const secondPromise = debounced();
+	const results = await Promise.allSettled([firstPromise, secondPromise]);
+
+	assert.equal(callCount, 1);
+	assert.equal(firstPromise, secondPromise);
+	assert.equal(results[0].status, 'rejected');
+	assert.equal(results[1].status, 'rejected');
+	assert.equal(results[0].reason, results[1].reason);
+});
+
 test('.promise() is not busy after a synchronous throw', async () => {
 	const error = new Error('sync');
 	const debounced = pDebounce.promise(value => {
@@ -1924,6 +1942,29 @@ test('.promise() is not busy after a synchronous throw', async () => {
 	});
 
 	await assert.rejects(debounced('throw'), error);
+	assert.equal(await debounced('next'), 'next');
+});
+
+test('.promise() with after option coalesces queued calls after a synchronous throw', async () => {
+	const error = new Error('sync');
+	const calls = [];
+	const debounced = pDebounce.promise(value => {
+		calls.push(value);
+		if (value === 'throw') {
+			throw error;
+		}
+
+		return value;
+	}, {after: true});
+
+	const results = await Promise.allSettled([debounced('throw'), debounced('queued'), debounced('latest')]);
+
+	assert.deepEqual(results, [
+		{status: 'rejected', reason: error},
+		{status: 'fulfilled', value: 'latest'},
+		{status: 'fulfilled', value: 'latest'},
+	]);
+	assert.deepEqual(calls, ['throw', 'latest']);
 	assert.equal(await debounced('next'), 'next');
 });
 

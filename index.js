@@ -112,20 +112,17 @@ pDebounce.promise = (function_, options = {}) => {
 		// Mark as busy before calling `function_`, so a synchronous re-entrant call does not start a concurrent execution.
 		currentPromise = promise;
 
-		resolve((async () => {
-			try {
-				return await function_.apply(context, arguments_);
-			} finally {
-				// Stay busy while the queued call runs, so calls never overlap, but settle this call's callers right away instead of after the whole queue.
-				if (queuedCall) {
-					const call = queuedCall;
-					queuedCall = undefined;
-					call.resolve(run(call.context, call.arguments));
-				} else {
-					currentPromise = undefined;
-				}
+		// Use `.finally()` instead of `try`/`finally`, so a synchronous throw does not clear the busy state before immediate callers can share the rejection.
+		resolve((async () => function_.apply(context, arguments_))().finally(() => {
+			// Stay busy while the queued call runs, so calls never overlap, but settle this call's callers right away instead of after the whole queue.
+			if (queuedCall) {
+				const call = queuedCall;
+				queuedCall = undefined;
+				call.resolve(run(call.context, call.arguments));
+			} else {
+				currentPromise = undefined;
 			}
-		})());
+		}));
 
 		return promise;
 	};
