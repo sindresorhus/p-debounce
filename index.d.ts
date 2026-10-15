@@ -78,7 +78,7 @@ declare const pDebounce: {
 	```
 	*/
 	<This, ArgumentsType extends unknown[], ReturnType>(
-		fn: (this: This, ...arguments: ArgumentsType) => ReturnType,
+		fn: (this: This, ...arguments: ArgumentsType) => ReturnType | PromiseLike<NoInfer<ReturnType>>,
 		wait: number,
 		options?: Options
 	): (this: This, ...arguments: ArgumentsType) => Promise<Awaited<ReturnType>>;
@@ -113,7 +113,7 @@ declare const pDebounce: {
 	```
 	*/
 	promise<This, ArgumentsType extends unknown[], ReturnType>(
-		function_: (this: This, ...arguments: ArgumentsType) => ReturnType,
+		function_: (this: This, ...arguments: ArgumentsType) => ReturnType | PromiseLike<NoInfer<ReturnType>>,
 		options?: PromiseOptions
 	): (this: This, ...arguments: ArgumentsType) => Promise<Awaited<ReturnType>>;
 };

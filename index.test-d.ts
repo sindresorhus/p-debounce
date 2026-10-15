@@ -16,6 +16,12 @@ expectType<(input: number) => Promise<number>>(pDebounce(expensiveCall, 200, {be
 // Test promise method
 expectType<(input: number) => Promise<number>>(pDebounce.promise(expensiveCall));
 
+// Test explicit resolved return type arguments
+expectType<(input: number) => Promise<number>>(pDebounce<unknown, [number], number>(expensiveCall, 200));
+expectType<(input: number) => Promise<number>>(pDebounce.promise<unknown, [number], number>(expensiveCall));
+expectError(pDebounce<unknown, [number], string>(expensiveCall, 200));
+expectError(pDebounce.promise<unknown, [number], string>(expensiveCall));
+
 // Test function that returns a promise or a plain value
 const promiseOrValue = (isCached: boolean): Promise<number> | 'cached' => (isCached ? 'cached' : Promise.resolve(1));
 expectType<(isCached: boolean) => Promise<number | 'cached'>>(pDebounce(promiseOrValue, 200));
